@@ -4,11 +4,9 @@ import { promisify } from 'util';
 
 import type { Version } from '..';
 
+export const exists = fs.existsSync;
 export const exec = promisify(execFile);
 export const write = promisify(fs.writeFile);
-export const read = promisify(fs.readFile);
-export const lstat = promisify(fs.lstat);
-export const exists = fs.existsSync;
 
 export function bump(version: string, type: Version): string | never {
 	let num: number, idx: number, arr = version.split('.');

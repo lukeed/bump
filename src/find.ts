@@ -1,7 +1,7 @@
 import { totalist } from 'totalist';
 import { basename, dirname } from 'path';
 
-import type { Graph, Dict, Package } from '../';
+import type { Graph, Dict, Package } from '..';
 
 export async function collect(dir: string, graph: Graph) {
 	await totalist(dir, (rel, absolute) => {
