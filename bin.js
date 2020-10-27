@@ -2,8 +2,10 @@
 const argv = require('mri')(process.argv.slice(2), {
 	default: {
 		'C': '.',
+		'A': false,
 	},
 	alias: {
+		'A': 'all',
 		'C': 'cwd',
 		'v': 'version',
 		'h': 'help',
@@ -23,7 +25,9 @@ if (argv.h) {
 
 (async function () {
 	try {
-		await require('.')(argv);
+		let type = argv._[0];
+		const commands = require('.');
+		await commands.version(type, argv);
 	} catch (err) {
 		console.error('ERROR', err.stack);
 		process.exit(1);

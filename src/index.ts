@@ -1,99 +1,115 @@
-const fs = require('fs');
-const { promisify } = require('util');
-const { join, resolve } = require('path');
-const escalade = require('escalade');
+import semiver from 'semiver';
+import escalade from 'escalade';
+import { join, resolve } from 'path';
+import { bump, exists, write } from './utils';
+import { collect } from './find';
+import * as git from './git';
 
-const NAME = 'bump.lock';
-const PKG = 'package.json';
+import type { Config, Graph, Options, Version } from '..';
 
-const read = promisify(fs.readFile);
-const write = promisify(fs.writeFile);
+const CONFIG = 'bump.json';
 
-// TODO: throw on no version, or omit, or default?
-function build_name(name, version='*') {
-	return name + '@' + version.replace('workspace:', '');
-}
-
-function parse_name(str) {
-	let arr = str.split('@');
-	return arr.slice(0, -1).join('@');
-}
-
-async function build(dir) {
-	const graph = new Map;
-	fs.readdirSync(dir).forEach(str => {
-		let name, dict, cache = new Set();
-		let pkg = require(join(dir, str, PKG));
-
-		if (dict = pkg.dependencies)
-			for (name in dict) cache.add(build_name(name, dict[name]));
-
-		if (dict = pkg.devDependencies)
-			for (name in dict) cache.add(build_name(name, dict[name]));
-
-		if (dict = pkg.peerDependencies)
-			for (name in dict) cache.add(build_name(name, dict[name]));
-
-		name = build_name(pkg.name, pkg.version);
-		graph.set(name, cache);
+export async function version(type: Version, argv: Options = {}) {
+	const cwd = argv.cwd = resolve(argv.cwd || '.');
+	const file = await escalade(argv.cwd, (dir, list) => {
+		if (list.includes(CONFIG)) return join(dir, CONFIG);
 	});
 
-	// build locals
-	// link vs install
-	let local_file = '';
-	for (let [pkg, list] of graph) {
-		let item, tmp, locals=[];
-		let pkgName = parse_name(pkg);
-		console.log('[%s]', pkgName);
+	if (!file) throw new Error('Missing "bump.json" file');
+	const conf = require(file) as Config;
+	const graph: Graph = new Map;
 
-		for (item of list) {
-			if (graph.has(item)) {
-				tmp = parse_name(item);
-				console.log('  ~> link "%s"', tmp);
-				locals.push(tmp);
-			} else {
-				console.log('  ~> install "%s"', item);
+	const toAbs = (x: string) => join(cwd, x);
+
+	const version = conf.version;
+	const pkgDefault = toAbs('packages');
+	conf.message = conf.message || 'v{VERSION}';
+	conf.packages = ([] as string[]).concat(conf.packages || []);
+	const packages = conf.packages.map(toAbs).filter(str => {
+		return exists(str) || console.warn('directory does not exist:', str);
+	});
+
+	if (!packages.length && exists(pkgDefault)) {
+		conf.packages.push('packages');
+		packages.push(pkgDefault);
+	} else if (!packages.length) {
+		if (conf.single) packages.push(cwd);
+		else throw new Error('Missing "packages" value');
+	}
+
+	await Promise.all(
+		packages.map(dir => collect(dir, graph))
+	);
+
+	if (!graph.size) {
+		throw new Error('No packages found!');
+	}
+
+	// all pkg dirs (diff)
+	const dirs: string[] = [];
+
+	for (const [key, pkg] of graph) {
+		// throw if pkg.version > expected|current
+		if (semiver(pkg.contents.version, version) > 0) {
+			throw new Error(`"${pkg.name}@${pkg.contents.version}" is beyond expected "${version}" version`);
+		}
+
+		dirs.push(pkg.dir);
+
+		for (let dep of pkg.deps) {
+			// purge external dependencies
+			graph.has(dep) || pkg.deps.delete(dep);
+		}
+	}
+
+	// dirty package names
+	const dirty: Set<string> = new Set;
+	const files: Set<string> = new Set;
+
+	if (argv.all) {
+		for (const [name, pkg] of graph) {
+			dirty.add(name);
+		}
+	} else {
+		const known = new Set(dirs);
+
+		function check(dir: string) {
+			if (!known.has(dir)) return;
+			for (const [name, pkg] of graph) {
+				if (pkg.dir !== dir) continue;
+				if (!dirty.has(name)) {
+					dirty.add(name);
+					pkg.deps.forEach(check);
+				}
 			}
 		}
 
-		if (locals.length > 0) {
-			local_file += pkgName + '\n\t';
-			local_file += locals.join('\n\t') + '\n';
-		}
+		await git.diff(version, dirs).then(list => {
+			list.forEach(x => check(resolve('.', x)));
+		});
 	}
 
-	console.log('\n\nlocal file:');
-	console.log(local_file);
+	const next = bump(version, type);
+	console.log('~> bump all to:', next);
 
-	return local_file;
-}
+	let txt = '';
+	await Promise.all(
+		[...dirty].map(key => {
+			const pkg = graph.get(key)!;
+			txt += `\n~> "${key}" (v${pkg.contents.version} ~> v${next})`;
+			pkg.contents.version = next;
+			files.add(pkg.file);
+			return write(pkg.file, JSON.stringify(pkg.contents, null, 2));
+		})
+	);
 
-module.exports = async function (argv) {
-	argv.cwd = resolve(argv.cwd || '.');
+	console.log('Updated "package.json" files:' + txt);
 
-	let i=0, filename, rgx=/pnpm-workspace.ya?ml$/;
-	let file = await escalade(argv.cwd, (dir, list) => {
-		for (i=0; i < list.length; i++) {
-			if (list[i] === NAME) return join(dir, filename=NAME);
-			if (rgx.test(list[i])) return join(dir, filename=list[i]);
-			if (list[i] === PKG) return join(dir, filename=PKG);
-		}
-	});
+	files.add(file);
+	conf.version = next;
+	await write(file, JSON.stringify(conf, null, 2));
 
-	if (filename === NAME) {
-		// parse own file
-		return;
-	}
-
-	let packages = [];
-
-	if (file && rgx.test(filename)) {
-		// parse `packages` list
-	} else if (filename === PKG) {
-		// parse `workspaces` list
-	} else {
-		throw new Error('Missing file');
-	}
-
-	// build `bump.lock` file
+	await git.add(files);
+	await git.commit(next, conf.message);
+	console.log('Done~!');
 }
