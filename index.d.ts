@@ -2,7 +2,6 @@ export type Dict<T> = Record<string, T>;
 
 export interface Package {
 	name: string;
-	public: boolean;
 	deps: Set<Package['name']>;
 	file: string;
 	dir: string;

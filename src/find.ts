@@ -32,7 +32,6 @@ export async function collect(dir: string, graph: Graph) {
 			name: pkg.name,
 			file: absolute,
 			dir: dirname(absolute),
-			public: String(pkg.private) !== 'true',
 			contents: pkg,
 			deps: cache,
 		});
