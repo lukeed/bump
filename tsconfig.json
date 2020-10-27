@@ -6,9 +6,11 @@
     "forceConsistentCasingInFileNames": true,
     "allowSyntheticDefaultImports": true,
     "moduleResolution": "node",
+    "strictNullChecks": true,
     "removeComments": true,
     "sourceMap": false,
     "allowJs": false,
+    "strict": true,
     "noEmit": true,
     "baseUrl": "."
   },
