@@ -1,10 +1,10 @@
 {
   "private": true,
-  "name": "version",
+  "name": "bump",
   "version": "0.0.0",
   "license": "MIT",
   "bin": {
-    "foo": "bin.js"
+    "bump": "bin.js"
   },
   "files": [
     "*.d.ts",
