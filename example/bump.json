@@ -1,0 +1,8 @@
+{
+  "single": true,
+  "version": "0.0.0",
+  "packages": [
+    "packages"
+  ],
+  "message": "v{VERSION}"
+}
