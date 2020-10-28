@@ -27,5 +27,7 @@ export function bump(version: string, type: Version): string | never {
 	}
 
 	arr[idx] = String(num + 1);
+	while (++idx < arr.length) arr[idx] = '0';
+
 	return arr.join('.');
 }
