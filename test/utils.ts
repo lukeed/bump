@@ -81,7 +81,9 @@ bump('should handle "major" bump', () => {
 	assert.is(utils.bump('1.13.45', 'major'), '2.0.0');
 	assert.is(utils.bump('9.0.1234', 'major'), '10.0.0');
 	assert.is(utils.bump('99.91.919', 'major'), '100.0.0');
-	// assert.is(utils.bump('1.0.0-next.1', 'major'), '1.0.0');
+
+	assert.is(utils.bump('1.0.0-next.1', 'major'), '1.0.0');
+	assert.is(utils.bump('3.0.0-beta.9', 'major'), '3.0.0');
 });
 
 bump('should handle "minor" bump', () => {
@@ -89,6 +91,9 @@ bump('should handle "minor" bump', () => {
 	assert.is(utils.bump('1.13.45', 'minor'), '1.14.0');
 	assert.is(utils.bump('9.9.1234', 'minor'), '9.10.0');
 	assert.is(utils.bump('99.91.919', 'minor'), '99.92.0');
+
+	assert.is(utils.bump('1.2.0-next.12', 'minor'), '1.2.0');
+	assert.is(utils.bump('3.12.0-beta.9', 'minor'), '3.12.0');
 });
 
 bump('should handle "patch" bump', () => {
@@ -96,6 +101,36 @@ bump('should handle "patch" bump', () => {
 	assert.is(utils.bump('1.13.45', 'patch'), '1.13.46');
 	assert.is(utils.bump('9.9.1234', 'patch'), '9.9.1235');
 	assert.is(utils.bump('99.91.919', 'patch'), '99.91.920');
+
+	assert.is(utils.bump('1.2.1-next.1', 'patch'), '1.2.1');
+	assert.is(utils.bump('3.2.1-beta.9', 'patch'), '3.2.1');
+});
+
+bump('should handle "premajor" bump', () => {
+	assert.is(utils.bump('0.0.0', 'premajor'), '1.0.0-next.0');
+	assert.is(utils.bump('1.13.45', 'premajor'), '2.0.0-next.0');
+
+	assert.is(utils.bump('1.0.0-next.0', 'premajor'), '1.0.0-next.1');
+	assert.is(utils.bump('2.0.0-next.99', 'premajor'), '2.0.0-next.100');
+	// assert.is(utils.bump('1.2.0-next.99', 'premajor'), '2.0.0-next.0');
+});
+
+bump('should handle "preminor" bump', () => {
+	assert.is(utils.bump('0.0.0', 'preminor'), '0.1.0-next.0');
+	assert.is(utils.bump('1.13.45', 'preminor'), '1.14.0-next.0');
+
+	assert.is(utils.bump('0.1.0-next.0', 'preminor'), '0.1.0-next.1');
+	assert.is(utils.bump('1.13.0-next.0', 'preminor'), '1.13.0-next.1');
+	assert.is(utils.bump('1.2.0-next.99', 'preminor'), '1.2.0-next.100');
+});
+
+bump('should handle "prepatch" bump', () => {
+	assert.is(utils.bump('0.0.0', 'prepatch'), '0.0.1-next.0');
+	assert.is(utils.bump('1.13.45', 'prepatch'), '1.13.46-next.0');
+
+	assert.is(utils.bump('0.0.1-next.0', 'prepatch'), '0.0.1-next.1');
+	assert.is(utils.bump('1.13.46-next.0', 'prepatch'), '1.13.46-next.1');
+	assert.is(utils.bump('1.2.1-next.99', 'prepatch'), '1.2.1-next.100');
 });
 
 bump.run();

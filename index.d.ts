@@ -24,7 +24,7 @@ export interface Config {
 	single?: boolean;
 }
 
-export type Version = 'patch' | 'minor' | 'major';
+export type Version = 'major' | 'minor' | 'patch' | 'premajor' | 'preminor' | 'prepatch';
 
 export interface Options {
 	cwd?: string;
