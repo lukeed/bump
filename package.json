@@ -21,8 +21,7 @@
   "dependencies": {
     "escalade": "^3.1.1",
     "mri": "^1.1.6",
-    "semiver": "^1.1.0",
-    "totalist": "^2.0.0"
+    "semiver": "^1.1.0"
   },
   "devDependencies": {
     "@types/node": "14.14.5",

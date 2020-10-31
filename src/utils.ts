@@ -7,6 +7,8 @@ import type { Version } from '..';
 export const exists = fs.existsSync;
 export const exec = promisify(execFile);
 export const write = promisify(fs.writeFile);
+export const list = promisify(fs.readdir);
+export const lstat = promisify(fs.lstat);
 
 export function bump(version: string, type: Version, preid = 'next'): string | never {
 	let num: number, idx: number, arr = version.split('.');
