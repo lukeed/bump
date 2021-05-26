@@ -6,8 +6,9 @@
     "bump": "bin.js"
   },
   "files": [
-    "*.d.ts",
-    "*.js"
+    "bin.js",
+    "index.js",
+    "index.d.ts"
   ],
   "engines": {
     "node": ">=10"
