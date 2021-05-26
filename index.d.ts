@@ -28,8 +28,8 @@ export type Version = 'major' | 'minor' | 'patch' | 'premajor' | 'preminor' | 'p
 
 export interface Options {
 	cwd?: string;
+	dryrun?: boolean;
 	all?: boolean;
-	// dryrun?: boolean;
 }
 
 export function version(type: Version, options?: Options): Promise<void>;

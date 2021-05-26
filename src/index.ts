@@ -10,6 +10,7 @@ import type { Config, Graph, Options, Version } from '..';
 const CONFIG = 'bump.json';
 
 export async function version(type: Version, argv: Options = {}) {
+	const isDry = !!argv.dryrun;
 	const cwd = argv.cwd = resolve(argv.cwd || '.');
 	const file = await escalade(argv.cwd, (dir, list) => {
 		if (list.includes(CONFIG)) return join(dir, CONFIG);
@@ -97,9 +98,9 @@ export async function version(type: Version, argv: Options = {}) {
 		[...dirty].map(key => {
 			const pkg = graph.get(key)!;
 			txt += `\n~> "${key}" (v${pkg.contents.version} ~> v${next})`;
-			pkg.contents.version = next;
 			files.add(pkg.file);
-			return write(pkg.file, JSON.stringify(pkg.contents, null, 2));
+			pkg.contents.version = next;
+			if (!isDry) return write(pkg.file, JSON.stringify(pkg.contents, null, 2));
 		})
 	);
 
@@ -107,9 +108,10 @@ export async function version(type: Version, argv: Options = {}) {
 
 	files.add(file);
 	conf.version = next;
-	await write(file, JSON.stringify(conf, null, 2));
 
-	await git.add(files);
-	await git.commit(next, conf.message);
+	isDry || await write(file, JSON.stringify(conf, null, 2));
+	isDry || await git.add(files);
+	isDry || await git.commit(next, conf.message);
+
 	console.log('Done~!');
 }

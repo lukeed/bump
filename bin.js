@@ -3,10 +3,12 @@ const argv = require('mri')(process.argv.slice(2), {
 	default: {
 		'C': '.',
 		'A': false,
+		'D': false,
 	},
 	alias: {
 		'A': 'all',
 		'C': 'cwd',
+		'D': 'dryrun',
 		'v': 'version',
 		'h': 'help',
 	}
@@ -25,9 +27,9 @@ if (argv.h) {
 
 (async function () {
 	try {
-		let type = (argv._[0] || '').toLowerCase();
+		let type = (argv._[0] || '').trim().toLowerCase();
 		if (!type) throw new Error('Missing <type> argument');
-		if (!/^(pre)?(major|minor|patch)/.test(type)) throw new Error(`Invalid <type> argument: "${type}"`);
+		if (!/^(pre)?(major|minor|patch)$/.test(type)) throw new Error(`Invalid <type> argument: "${type}"`);
 
 		let commands = require('.');
 		await commands.version(type, argv);
