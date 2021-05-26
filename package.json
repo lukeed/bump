@@ -14,8 +14,8 @@
     "node": ">=10"
   },
   "scripts": {
+    "types": "tsc",
     "build": "rollup -c",
-    "pretest": "tsc",
     "test": "uvu test -r ts-node/register"
   },
   "dependencies": {
