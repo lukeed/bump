@@ -25,8 +25,11 @@ if (argv.h) {
 
 (async function () {
 	try {
-		let type = argv._[0];
-		const commands = require('.');
+		let type = (argv._[0] || '').toLowerCase();
+		if (!type) throw new Error('Missing <type> argument');
+		if (!/^(pre)?(major|minor|patch)/.test(type)) throw new Error(`Invalid <type> argument: "${type}"`);
+
+		let commands = require('.');
 		await commands.version(type, argv);
 	} catch (err) {
 		console.error('ERROR', err.stack);
