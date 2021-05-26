@@ -19,6 +19,7 @@ export async function diff(tag: string, targets: string[]): Promise<string[]> {
 		if (err.code === 'ENOENT') {
 			throw new Error('Missing `git` binary');
 		} else if (err.stderr && /(bad|unknown)\s+/.test(err.stderr)) {
+			if (tag === '0.0.0') return targets; // fresh repo, all new
 			throw new Error(`Missing "v${tag}" tag in \`git\` history!`);
 		} else throw err;
 	}
