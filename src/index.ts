@@ -85,9 +85,13 @@ export async function version(type: Version, argv: Options = {}) {
 			}
 		}
 
-		await git.diff(version, dirs).then(list => {
+		const list = await git.diff(version, dirs);
+
+		if (list.length > 0) {
 			list.forEach(x => check(resolve('.', x)));
-		});
+		} else {
+			return console.log('! no changes since "%s" version', version);
+		}
 	}
 
 	const next = bump(version, type);

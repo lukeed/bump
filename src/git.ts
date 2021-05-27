@@ -8,11 +8,9 @@ export async function diff(tag: string, targets: string[]): Promise<string[]> {
 	try {
 		const args = ['diff', '--dirstat=files,0', `v${tag}`];
 		if (targets.length) args.push('--', ...targets);
-		// TODO: handle empty `output`
-		// ~> AKA no diff and/or out of sync
-		const output = await run('git', args);
 
-		return output.split(/\r?\n/g).map(str => {
+		const output = await run('git', args);
+		return output.length === 0 ? [] : output.split(/\r?\n/g).map(str => {
 			return str.split('% ')[1].replace(/[\\\/]+$/, '');
 		});
 	} catch (err) {
