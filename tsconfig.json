@@ -1,33 +1,16 @@
 {
-  "ts-node": {
-    "transpileOnly": true,
-    "compilerOptions": {
-      "module": "commonjs"
-    },
-    "include": [
-      "test"
-    ]
-  },
   "compilerOptions": {
-    "target": "esnext",
+    "target": "es2024",
     "module": "esnext",
-    "noImplicitAny": true,
-    "forceConsistentCasingInFileNames": true,
-    "allowSyntheticDefaultImports": true,
-    "moduleResolution": "node",
-    "strictNullChecks": true,
-    "removeComments": true,
-    "sourceMap": false,
-    "allowJs": false,
+    "moduleResolution": "bundler",
     "strict": true,
     "noEmit": true,
-    "baseUrl": "."
+    "skipLibCheck": true,
+    "types": ["bun", "node"]
   },
   "include": [
-    "src"
-  ],
-  "exclude": [
-    "node_modules",
-    "/index.js"
+    "src",
+    "test",
+    "index.d.ts"
   ]
 }
