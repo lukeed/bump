@@ -1,9 +1,8 @@
 #!/usr/bin/env node
 const argv = require('mri')(process.argv.slice(2), {
+	boolean: ['all', 'dryrun'],
 	default: {
 		'C': '.',
-		'A': false,
-		'D': false,
 	},
 	alias: {
 		'A': 'all',
@@ -26,7 +25,7 @@ if (argv.h) {
 	output += '\n    bump <type> [options]';
 	output += '\n';
 	output += '\n  Options';
-	output += '\n    -A, --all        Apply version change to all packages';
+	output += '\n    -A, --all        Apply version change to all packages  (default: "all" of bump.json)';
 	output += '\n    -C, --cwd        Directory to resolve from  (default .)';
 	output += '\n    -D, --dryrun     Perform a practice run; no actions taken';
 	output += '\n    -v, --version      Displays current version';

@@ -1,54 +1,31 @@
-import { dirname, join } from 'path';
-import { exists, list, lstat } from './utils';
+import { existsSync, readdirSync, realpathSync } from 'node:fs';
+import { join } from 'node:path';
 
-import type { Graph, Dict, Package } from '..';
+import * as utils from './utils';
 
-// TODO: accept ignores
-export async function collect(dir: string, graph: Graph) {
-	if (!exists(dir)) return;
+import type { Graph, Manifest } from '..';
 
-	let fpath = join(dir, 'package.json');
+/**
+ * Add each package in `dir` to `graph`: `dir` itself when it has a `package.json` file, else each folder in it.
+ * @example let graph: Graph = new Map; collect('packages', graph);
+ */
+export function collect(dir: string, graph: Graph): void {
+	if (!existsSync(dir)) return;
 
-	if (exists(fpath)) {
-		let cache: Set<string> = new Set;
-		let name: string, dict: Dict<string> | void;
-		let pkg = require(fpath) as Package['contents'];
+	let file = join(dir, 'package.json');
 
-		if (!pkg.name) {
-			return console.log('! missing "name" field in "%s"', fpath);
-		}
-
-		if (!pkg.version) {
-			return console.log('! missing "version" field in "%s"', pkg.name);
-		}
-
-		if (dict = pkg.dependencies)
-			for (name in dict) cache.add(name);
-
-		if (dict = pkg.devDependencies)
-			for (name in dict) cache.add(name);
-
-		if (dict = pkg.peerDependencies)
-			for (name in dict) cache.add(name);
-
-		return graph.set(pkg.name, {
-			name: pkg.name,
-			file: fpath,
-			dir: dirname(fpath),
-			contents: pkg,
-			deps: cache,
-		});
+	if (existsSync(file)) {
+		let { value } = utils.read<Manifest>(file);
+		if (!value.name) return console.log('! missing "name" field in "%s"', file);
+		if (!value.version) return console.log('! missing "version" field in "%s"', value.name);
+		let other = graph.get(value.name);
+		if (other) throw new Error(`Two packages are named "${value.name}": "${other.file}" and "${file}"`);
+		graph.set(value.name, { name: value.name, dir: realpathSync(dir), file, contents: value });
+		return;
 	}
 
-	await list(dir).then(arr => Promise.all(
-		arr.map(async str => {
-			if (str !== 'node_modules') {
-				let abs = join(dir, str);
-				let stats = await lstat(abs);
-				if (stats.isDirectory()) {
-					return collect(abs, graph);
-				}
-			}
-		})
-	));
+	for (let entry of readdirSync(dir, { withFileTypes: true })) {
+		if (entry.name === 'node_modules' || entry.name.startsWith('.')) continue;
+		if (entry.isDirectory()) collect(join(dir, entry.name), graph);
+	}
 }
