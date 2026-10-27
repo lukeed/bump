@@ -11,17 +11,12 @@
     "index.d.ts"
   ],
   "engines": {
-    "node": ">=20"
+    "bun": ">=1.4"
   },
   "scripts": {
-    "build": "bun build src/index.ts --outfile index.js --target node --format cjs --packages external --minify",
+    "build": "bun build src/index.ts --outfile index.js --target bun && bun build src/cli.ts --outfile bin.js --target bun",
     "types": "tsc",
     "test": "bun test"
-  },
-  "dependencies": {
-    "escalade": "^3.2.0",
-    "mri": "^1.2.0",
-    "semiver": "^1.1.0"
   },
   "devDependencies": {
     "@types/bun": "^1.4.3",
