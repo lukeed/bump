@@ -1,0 +1,93 @@
+#!/usr/bin/env bun
+import { parseArgs } from 'node:util';
+
+import pkg from '../package.json' with { type: 'json' };
+
+import * as bump from './index';
+
+const HELP = `
+  Usage
+    bump <type | version> [...targets] [options]
+
+  Types
+    major, minor, patch, premajor, preminor, prepatch, prerelease
+    or an exact version, for example 2.0.0
+
+  Options
+    -A, --all            Release every unit, changed or not
+        --preid <id>     Preid for a new prerelease line  (default: "preid" of bump.json, else next)
+        --adopt          Release units that have no tag, as changed
+    -D, --dryrun         Print the release, and write nothing
+        --json           Print the result as JSON on stdout
+    -C, --cwd <dir>      Directory to start from  (default .)
+    -v, --version        Print the version
+    -h, --help           Print this message
+
+  Examples
+    bump patch
+    bump minor --dryrun
+    bump prerelease --preid rc
+    bump 2.0.0 @acme/cli
+`;
+
+let argv = process.argv.slice(2);
+
+if (argv.some(arg => arg === '-h' || arg === '--help')) {
+	process.stdout.write(HELP + '\n');
+	process.exit(0);
+}
+
+if (argv.some(arg => arg === '-v' || arg === '--version')) {
+	process.stdout.write(`${pkg.name}, v${pkg.version}\n`);
+	process.exit(0);
+}
+
+let fail = (message: string, code = 1): never => {
+	process.stderr.write(`error: ${message}\n`);
+	process.exit(code);
+};
+
+let parsed = (() => {
+	try {
+		return parseArgs({
+			args: argv,
+			allowPositionals: true,
+			strict: true,
+			options: {
+				all: { type: 'boolean', short: 'A' },
+				preid: { type: 'string' },
+				adopt: { type: 'boolean' },
+				dryrun: { type: 'boolean', short: 'D' },
+				json: { type: 'boolean' },
+				cwd: { type: 'string', short: 'C' },
+			},
+		});
+	} catch (err) {
+		let message = err instanceof Error ? err.message : String(err);
+		let code = Reflect.get(Object(err), 'code');
+		let option = /(--[\w-]+)/.exec(message)?.[1] ?? /'(-[^']+)'/.exec(message)?.[1] ?? '';
+		if (code === 'ERR_PARSE_ARGS_UNKNOWN_OPTION') fail(`Unknown option "${/'([^']+)'/.exec(message)?.[1] ?? option}"`);
+		if (code === 'ERR_PARSE_ARGS_INVALID_OPTION_VALUE') fail(`Missing value for ${option}`);
+		return fail(message);
+	}
+})();
+
+let { values, positionals } = parsed;
+let [type = '', ...targets] = positionals;
+let json = !!values.json;
+
+try {
+	let result = await bump.version(type, {
+		cwd: values.cwd,
+		targets,
+		all: values.all,
+		preid: values.preid,
+		adopt: values.adopt,
+		dryrun: values.dryrun,
+		log: line => (json || line.startsWith('warning: ') ? process.stderr : process.stdout).write(line + '\n'),
+	});
+	if (json) process.stdout.write(JSON.stringify(result, null, 2) + '\n');
+} catch (err) {
+	let signal = err instanceof bump.Interrupt ? err.signal : undefined;
+	fail(err instanceof Error ? err.message : String(err), signal === 'SIGINT' ? 130 : signal === 'SIGTERM' ? 143 : 1);
+}
