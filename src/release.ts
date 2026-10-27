@@ -1,4 +1,4 @@
-import { readFileSync, writeFileSync } from 'node:fs';
+import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import { relative } from 'node:path';
 
 import * as git from './git';
@@ -41,8 +41,8 @@ export type Output = {
  */
 export async function release(input: Input): Promise<Output> {
 	let { top } = input;
-	let originals = new Map<string, string>();
-	for (let file of [...input.edits.keys(), ...input.locks.map(lock => lock.file)]) originals.set(file, readFileSync(file, 'utf8'));
+	let originals = new Map<string, Buffer>();
+	for (let file of [...input.edits.keys(), ...input.locks.map(lock => lock.file)]) originals.set(file, readFileSync(file));
 
 	let signal: NodeJS.Signals | undefined;
 	let onInt = () => void (signal ??= 'SIGINT');
@@ -68,8 +68,12 @@ export async function release(input: Input): Promise<Output> {
 			check();
 		}
 
+		for (let lock of input.locks) {
+			if (!existsSync(lock.file)) throw new Error(`\`${lock.binary} ${lock.args.join(' ')}\` removed "${lock.file}"`);
+		}
+
 		let files = [...originals]
-			.filter(([file, text]) => input.edits.has(file) || readFileSync(file, 'utf8') !== text)
+			.filter(([file, bytes]) => input.edits.has(file) || !readFileSync(file).equals(bytes))
 			.map(([file]) => relative(top, file).split('\\').join('/'))
 			.sort();
 
@@ -96,7 +100,7 @@ export async function release(input: Input): Promise<Output> {
 	}
 }
 
-async function undo(input: Input, originals: Map<string, string>, created: string[], failure: unknown): Promise<void> {
+async function undo(input: Input, originals: Map<string, Buffer>, created: string[], failure: unknown): Promise<void> {
 	let { top, head } = input;
 	let files = [...originals.keys()].map(file => relative(top, file));
 	let problems: string[] = [];
@@ -112,7 +116,7 @@ async function undo(input: Input, originals: Map<string, string>, created: strin
 	await attempt(async () => {
 		if ((await git.head(top)) !== head) await git.run(top, ['reset', '--soft', head]);
 	});
-	for (let [file, text] of originals) await attempt(() => writeFileSync(file, text));
+	for (let [file, bytes] of originals) await attempt(() => writeFileSync(file, bytes));
 	await attempt(() => git.run(top, ['reset', '--quiet', head, '--', ...files]));
 
 	if (!problems.length) return;
@@ -122,7 +126,7 @@ async function undo(input: Input, originals: Map<string, string>, created: strin
 		if (await git.ok(top, ['rev-parse', '--verify', '--quiet', `refs/tags/${tag}`])) tags.push(tag);
 	}
 	let current = await git.head(top);
-	let changed = [...originals].filter(([file, text]) => readFileSync(file, 'utf8') !== text).map(([file]) => relative(top, file));
+	let changed = [...originals].filter(([file, bytes]) => !existsSync(file) || !readFileSync(file).equals(bytes)).map(([file]) => relative(top, file));
 
 	let lines = [
 		failure instanceof Error ? failure.message : String(failure),
