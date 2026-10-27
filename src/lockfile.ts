@@ -14,8 +14,8 @@ const MANAGERS: [file: string, binary: string, args: string[]][] = [
 	['package-lock.json', 'npm', ['install', '--package-lock-only', '--ignore-scripts']],
 	['bun.lock', 'bun', ['install', '--lockfile-only', '--ignore-scripts']],
 	['bun.lockb', 'bun', ['install', '--lockfile-only', '--ignore-scripts']],
-	['pnpm-lock.yaml', 'pnpm', ['install', '--lockfile-only', '--ignore-scripts']],
-	['yarn.lock', 'yarn', ['install', '--mode=update-lockfile']],
+	['pnpm-lock.yaml', 'pnpm', ['install', '--lockfile-only', '--ignore-scripts', '--no-frozen-lockfile']],
+	['yarn.lock', 'yarn', ['install', '--mode=update-lockfile', '--no-immutable']],
 ];
 
 async function exec(cwd: string, binary: string, args: string[]): Promise<{ code: number; output: string }> {

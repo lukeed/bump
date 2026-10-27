@@ -652,13 +652,14 @@ When at least one npm package is released or gets a range edit, check the root (
 |---|---|
 | `package-lock.json` | `npm install --package-lock-only --ignore-scripts` |
 | `bun.lock` or `bun.lockb` | `bun install --lockfile-only --ignore-scripts` |
-| `pnpm-lock.yaml` | `pnpm install --lockfile-only --ignore-scripts` |
-| `yarn.lock`, Yarn 2 or later | `yarn install --mode=update-lockfile` |
+| `pnpm-lock.yaml` | `pnpm install --lockfile-only --ignore-scripts --no-frozen-lockfile` |
+| `yarn.lock`, Yarn 2 or later | `yarn install --mode=update-lockfile --no-immutable` |
 
 - A lockfile that git does not track is not updated.
 - Yarn 1 has no lockfile-only mode. For a `yarn.lock` with Yarn 1 (`yarn --version` starts with `1.`), print a warning that the lockfile is not updated.
 - Several lockfiles: run each command, in the order of the table.
 - These commands can need network access. They do not install packages and do not run scripts.
+- In CI (`CI=1`), pnpm and Yarn freeze their lockfiles by default. `--no-frozen-lockfile` and `--no-immutable` turn that off, because the update is the goal.
 - The commands run after the manifests are written (§14.2). Their output cannot get the parse-again check.
 - A lockfile is in `files` (§13.2) only if its text changed. With `--dryrun`, the commands do not run, and `files` lists every lockfile that would be updated.
 
