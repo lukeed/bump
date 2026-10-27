@@ -148,7 +148,7 @@ export async function version(input: Type | string, options: Options = {}): Prom
 		}
 	}
 	for (let range of ranges) push(range.file, { path: range.path, value: range.to });
-	for (let [file, change] of await locks(top, picks)) push(file, change);
+	for (let [file, change] of await locks(top, packages, picks)) push(file, change);
 
 	let edits = new Map<string, string>();
 	for (let [file, list] of changes) edits.set(file, edit.edit(file, readFileSync(file, 'utf8'), list));
@@ -212,19 +212,17 @@ export async function version(input: Type | string, options: Options = {}): Prom
 }
 
 /**
- * The `Cargo.lock` changes for the released crates, in each tracked lockfile.
+ * The `Cargo.lock` changes for the released crates, in each tracked lockfile of any crate.
  */
-async function locks(top: string, picks: Pick[]): Promise<[string, Change][]> {
-	let byLock = new Map<string, Map<string, Pick>>();
+async function locks(top: string, packages: Package[], picks: Pick[]): Promise<[string, Change][]> {
+	let crates = new Map<string, Pick>();
 	for (let pick of picks) {
-		for (let pkg of pick.unit.members) {
-			if (pkg.ecosystem !== 'cargo' || !pkg.lock) continue;
-			byLock.set(pkg.lock, new Map([...byLock.get(pkg.lock) ?? [], [pkg.name, pick]]));
-		}
+		for (let pkg of pick.unit.members) if (pkg.ecosystem === 'cargo') crates.set(pkg.name, pick);
 	}
+	if (!crates.size) return [];
 
 	let output: [string, Change][] = [];
-	for (let [dir, crates] of byLock) {
+	for (let dir of new Set(packages.map(pkg => pkg.lock).filter(dir => dir !== undefined))) {
 		let file = join(dir, 'Cargo.lock');
 		if (!existsSync(file) || !(await git.tracked(top, file))) continue;
 		let entries = cargo.parse(file).package;
@@ -232,14 +230,14 @@ async function locks(top: string, picks: Pick[]): Promise<[string, Change][]> {
 		entries.forEach((entry: unknown, index) => {
 			let item: Record<string, unknown> = entry && typeof entry === 'object' ? { ...entry } : {};
 			let pick = typeof item.name === 'string' ? crates.get(item.name) : undefined;
-			if (pick && item.source === undefined && item.version === pick.from) {
+			if (pick && item.source === undefined && item.version !== pick.to) {
 				output.push([file, { path: ['package', index, 'version'], value: pick.to }]);
 			}
 			if (!Array.isArray(item.dependencies)) return;
 			item.dependencies.forEach((dep: unknown, at) => {
 				let [name, version, ...rest] = typeof dep === 'string' ? dep.split(' ') : [];
 				let found = name ? crates.get(name) : undefined;
-				if (found && version === found.from && !rest.length) {
+				if (found && version && version !== found.to && !rest.length) {
 					output.push([file, { path: ['package', index, 'dependencies', at], value: `${name} ${found.to}` }]);
 				}
 			});

@@ -636,7 +636,8 @@ This makes a bug in the text edits fail safely.
   - the ranges of §11.3, including `[workspace.dependencies]`;
   - `Cargo.lock` in the Cargo workspace root (§7.4), only if git tracks it (`git ls-files --error-unmatch`). If git does not track it, do not write it: Cargo makes it again. In it:
     - for each `[[package]]` entry with no `source` key and the name of a released crate: the `version`;
-    - each string `"<name> <old version>"` in a `dependencies` array, where `<name>` is a released crate: the version part.
+    - each string `"<name> <version>"` in a `dependencies` array, where `<name>` is a released crate: the version part.
+  - Every tracked `Cargo.lock` of any discovered crate gets these changes, not only the lockfile of the released crates' own workspace: a path dependency can cross workspaces.
 
 - **npm lockfiles** (§12.5).
 
@@ -792,7 +793,7 @@ In this order:
 2. Update the npm lockfiles (§12.5). Add each lockfile whose text changed to the files.
 3. `git add -- <files>`.
 4. `git commit --message <message> -- <files>`. Hooks run normally. There is no `--no-verify`.
-5. Record the release commit: `git rev-parse HEAD` right after the commit.
+5. Record the release commit: the first commit after the original HEAD on the first-parent line of HEAD (`git rev-list --first-parent --reverse <original HEAD>..HEAD`). A `post-commit` hook runs before `git commit` returns, so HEAD can already point to a later commit.
 6. For each unit, in unit order: `git tag --annotate --message <tag> <tag> <release commit>`. Name the commit explicitly, because a `post-commit` hook can move HEAD. Git config such as `tag.gpgSign` applies.
 
 ### 14.3 Undo

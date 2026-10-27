@@ -194,3 +194,27 @@ describe('cargo workspaces', () => {
 		expect(result.units[0].packages.map((pkg: { name: string; publish: boolean }) => [pkg.name, pkg.publish])).toEqual([['a', false], ['b', false], ['c', false], ['d', true]]);
 	});
 });
+
+describe('more cargo layouts', () => {
+	test('a release updates a Cargo.lock in another workspace, and fixes stale entries', () => {
+		let r = h.repo({
+			'bump.json': JSON.stringify({ independent: true, packages: ['a', 'b'] }),
+			'a/Cargo.toml': h.crate('a', '1.0.0', '[dependencies]\nb = { path = "../b", version = "1.0.0" }\n\n[workspace]'),
+			'a/Cargo.lock': lock(['a', '1.0.0', ['b']], ['b', '0.9.0']),
+			'b/Cargo.toml': h.crate('b', '1.0.0', '[workspace]'),
+			'b/Cargo.lock': lock(['b', '1.0.0']),
+		});
+		h.tag(r, 'a@1.0.0');
+		h.tag(r, 'b@1.0.0');
+		h.commit(r, { 'b/src/lib.rs': '' });
+		expect(h.bump(r, 'patch').code).toBe(0);
+		expect(h.read(r, 'a/Cargo.lock')).toBe(lock(['a', '1.0.1', ['b']], ['b', '1.0.1']));
+		expect(h.read(r, 'b/Cargo.lock')).toBe(lock(['b', '1.0.1']));
+	});
+
+	test('skips a member folder without a Cargo.toml', () => {
+		let r = h.repo({ 'Cargo.toml': '[workspace]\nmembers = ["crates/*"]\n', 'crates/a/Cargo.toml': h.crate('a', '1.0.0'), 'crates/assets/x.png': '' }, { tag: 'v1.0.0' });
+		h.commit(r, { 'crates/a/src/lib.rs': '' });
+		expect(h.bump(r, 'patch').code).toBe(0);
+	});
+});
