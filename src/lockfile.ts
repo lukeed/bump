@@ -18,14 +18,18 @@ const MANAGERS: [file: string, binary: string, args: string[]][] = [
 	['yarn.lock', 'yarn', ['install', '--mode=update-lockfile', '--no-immutable']],
 ];
 
-async function exec(cwd: string, binary: string, args: string[]): Promise<{ code: number; output: string }> {
-	let proc = Bun.spawn([binary, ...args], { cwd, stdin: 'ignore', stdout: 'pipe', stderr: 'pipe' });
+async function exec(cwd: string, binary: string, args: string[]): Promise<{ code: number; stdout: string; stderr: string }> {
+	try {
+		var proc = Bun.spawn([binary, ...args], { cwd, stdin: 'ignore', stdout: 'pipe', stderr: 'pipe' });
+	} catch {
+		return { code: 127, stdout: '', stderr: '' };
+	}
 	let [stdout, stderr, code] = await Promise.all([
 		new Response(proc.stdout).text(),
 		new Response(proc.stderr).text(),
 		proc.exited,
 	]);
-	return { code, output: (stderr.trim() || stdout.trim()) };
+	return { code, stdout: stdout.trim(), stderr: stderr.trim() };
 }
 
 /**
@@ -38,8 +42,9 @@ export async function find(root: string, top: string, warn: (message: string) =>
 	for (let [name, binary, args] of MANAGERS) {
 		let file = join(root, name);
 		if (!existsSync(file) || !(await git.tracked(top, file))) continue;
-		if (!Bun.which(binary)) throw new Error(`Missing "${binary}" binary to update "${file}"`);
-		if (binary === 'yarn' && (await exec(root, binary, ['--version'])).output.startsWith('1.')) {
+		let probe = await exec(root, binary, ['--version']);
+		if (probe.code !== 0) throw new Error(`Missing "${binary}" binary to update "${file}"`);
+		if (binary === 'yarn' && probe.stdout.split('\n').some(line => line.startsWith('1.'))) {
 			warn(`Yarn 1 cannot update "${file}" without an install; the lockfile is not updated`);
 			continue;
 		}
@@ -53,7 +58,7 @@ export async function find(root: string, top: string, warn: (message: string) =>
  * @example await update('repo', lock);
  */
 export async function update(root: string, lock: Lockfile): Promise<void> {
-	let { code, output } = await exec(root, lock.binary, lock.args);
-	if (code !== 0) throw new Error(`\`${lock.binary} ${lock.args.join(' ')}\` failed: ${output || `exit code ${code}`}`);
+	let { code, stdout, stderr } = await exec(root, lock.binary, lock.args);
+	if (code !== 0) throw new Error(`\`${lock.binary} ${lock.args.join(' ')}\` failed: ${stderr || stdout || `exit code ${code}`}`);
 }
 
