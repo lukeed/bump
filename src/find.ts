@@ -73,18 +73,21 @@ export function packages(config: Config, warn: (message: string) => void): Packa
 	let found: Package[] = [];
 	let add = (pkg: Package | undefined) => pkg && found.push(pkg);
 
+	let split = (patterns: string[]): [string[], string[]] => [
+		patterns.filter(pattern => !pattern.startsWith('!')),
+		patterns.filter(pattern => pattern.startsWith('!')).map(pattern => pattern.slice(1)),
+	];
+
 	if (config.packages) {
-		let include = config.packages.filter(pattern => !pattern.startsWith('!'));
-		let exclude = config.packages.filter(pattern => pattern.startsWith('!')).map(pattern => pattern.slice(1));
-		for (let dir of dirs(root, include, exclude)) {
+		for (let dir of dirs(root, ...split(config.packages))) {
 			add(npm.read(dir, warn));
 			add(cargo.read(dir, top, warn));
 		}
 	} else {
-		for (let dir of dirs(root, npm.members(root) ?? ['.'])) add(npm.read(dir, warn));
+		for (let dir of dirs(root, ...split(npm.members(root) ?? ['.']))) add(npm.read(dir, warn));
 
 		let workspace = cargo.members(root);
-		let crates = dirs(root, workspace?.include ?? ['.'], workspace?.exclude);
+		let crates = dirs(root, workspace?.include ?? ['.'], workspace?.exclude).filter(dir => existsSync(join(dir, 'Cargo.toml')));
 		let excluded = dirs(root, workspace?.exclude ?? []);
 		for (let index = 0; workspace && index < crates.length; index++) {
 			for (let dir of cargo.paths(crates[index], top)) {

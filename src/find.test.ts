@@ -95,3 +95,14 @@ describe('packages', () => {
 function defaults(r: h.Repo): config.Config {
 	return { root: r.dir, top: r.dir, independent: false, groups: {}, preid: 'next', tag: 'v{version}', message: 'v{version}' };
 }
+
+describe('exclusions', () => {
+	test('a "!" pattern in workspace globs excludes', async () => {
+		let { names } = await discover({
+			'pnpm-workspace.yaml': 'packages:\n  - "packages/*"\n  - "!packages/internal"\n',
+			'packages/a/package.json': h.manifest('a', '1.0.0'),
+			'packages/internal/package.json': h.manifest('internal', '1.0.0'),
+		});
+		expect(names).toEqual(['npm:a']);
+	});
+});
