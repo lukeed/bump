@@ -28,7 +28,7 @@ export function label(unit: Unit): string {
  * @example tag(config, unit, '1.2.0') //=> 'app@1.2.0'
  */
 export function tag(config: Config, unit: Unit, version: string): string {
-	return config.tag.replaceAll('{name}', unit.name ?? '').replaceAll('{version}', version);
+	return config.tag.replaceAll('{name}', () => unit.name ?? '').replaceAll('{version}', () => version);
 }
 
 /**
@@ -119,10 +119,10 @@ export function build(config: Config, packages: Package[]): Unit[] {
 		}
 
 		let escape = (text: string) => text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-		let source = escape(config.tag).replaceAll(escape('{name}'), escape(name ?? ''));
+		let source = escape(config.tag).replaceAll(escape('{name}'), () => escape(name ?? ''));
 		let marker = escape('{version}');
 		let at = source.indexOf(marker);
-		source = source.slice(0, at) + `(${semver.PATTERN})` + source.slice(at + marker.length).replaceAll(marker, '\\1');
+		source = source.slice(0, at) + `(${semver.PATTERN})` + source.slice(at + marker.length).replaceAll(marker, () => '\\1');
 
 		return { name, members, version: String(versions[0]), pattern: new RegExp(`^${source}$`), deps: new Set<Unit>() };
 	});

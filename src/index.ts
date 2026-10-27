@@ -169,7 +169,7 @@ export async function version(input: Type | string, options: Options = {}): Prom
 	}
 	if (untracked.length) throw new Error(`These files are not tracked by git: ${untracked.map(file => `"${file}"`).join(', ')}`);
 
-	let message = conf.message.replaceAll('{version}', picks[0].to).replaceAll('{tags}', tags.join(', '));
+	let message = conf.message.replaceAll('{version}', () => picks[0].to).replaceAll('{tags}', () => tags.join(', '));
 
 	result.message = message;
 	result.units = picks.map((pick, index) => ({
