@@ -18,7 +18,7 @@ const FIELDS = {
  */
 export function parse(file: string): Record<string, unknown> {
 	try {
-		var value: unknown = JSON.parse(readFileSync(file, 'utf8'));
+		var value: unknown = JSON.parse(readFileSync(file, 'utf8').replace(/^\uFEFF/, ''));
 	} catch (err) {
 		throw new Error(`Invalid JSON in "${file}": ${err instanceof Error ? err.message : String(err)}`);
 	}

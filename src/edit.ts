@@ -23,7 +23,7 @@ export type Change = {
  */
 export function edit(file: string, text: string, changes: Change[]): string {
 	let format = file.endsWith('.json') ? json : toml;
-	let parse = file.endsWith('.json') ? JSON.parse : Bun.TOML.parse;
+	let parse = file.endsWith('.json') ? (input: string) => JSON.parse(input.replace(/^\uFEFF/, '')) : Bun.TOML.parse;
 
 	let spans = new Map<string, Span>();
 	for (let span of format.scan(text)) spans.set(JSON.stringify(span.path), span);

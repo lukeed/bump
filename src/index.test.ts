@@ -310,4 +310,33 @@ describe('git', () => {
 		h.git(r, 'switch', '--quiet', '--detach');
 		expect(h.bump(r, 'minor').code).toBe(0);
 	});
+
+	test('refuses a tag name that git does not allow', () => {
+		let r = h.repo({ 'bump.json': '{ "packages": "packages/*", "tag": "v {version}" }', 'packages/a/package.json': h.manifest('a', '0.0.0') });
+		expect(h.bump(r, 'patch').stderr).toBe('error: Invalid tag name: "v 0.0.1"\n');
+	});
+});
+
+describe('ownership and formats', () => {
+	test('two packages in one folder both own its files, and a root package owns the rest', () => {
+		let r = h.repo({
+			'bump.json': JSON.stringify({ independent: true, packages: ['.', 'twin', 'deep'] }),
+			'package.json': h.manifest('root', '1.0.0'),
+			'twin/package.json': h.manifest('twin-js', '1.0.0'),
+			'twin/Cargo.toml': h.crate('twin-rs', '1.0.0'),
+			'deep/package.json': h.manifest('deep', '1.0.0'),
+		});
+		for (let name of ['root', 'twin-js', 'twin-rs', 'deep']) h.tag(r, `${name}@1.0.0`);
+		h.commit(r, { 'twin/src/lib.rs': '', 'docs/x.md': '' });
+		let names = JSON.parse(h.bump(r, 'patch', '--json').stdout).units.map((unit: { name: string }) => unit.name);
+		expect(names).toEqual(['root', 'twin-js', 'twin-rs']);
+	});
+
+	test('keeps a byte order mark in package.json', () => {
+		let text = '\ufeff' + h.manifest('a', '1.0.0');
+		let r = h.repo({ ...ROOT, 'packages/a/package.json': text }, { tag: 'v1.0.0' });
+		h.commit(r, { 'packages/a/x.js': '1' });
+		expect(h.bump(r, 'patch').code).toBe(0);
+		expect(h.read(r, 'packages/a/package.json')).toBe(text.replace('1.0.0', '1.0.1'));
+	});
 });
