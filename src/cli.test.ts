@@ -34,6 +34,7 @@ describe('cli', () => {
 			[['patch', '-x'], 'Unknown option "-x"'],
 			[['patch', '--preid'], 'Missing value for --preid'],
 			[['patch', '-C'], 'Missing value for --cwd'],
+			[['patch', '--all=1'], 'Option --all takes no value'],
 			[[], 'Missing <type> argument'],
 			[['huge'], 'Invalid <type> argument: "huge"'],
 			[['1.0'], 'Invalid <type> argument: "1.0"'],
@@ -63,7 +64,7 @@ describe('cli', () => {
 		h.write(r, { '.git/hooks/pre-commit': '#!/bin/sh\ntouch .home/waiting\nsleep 5\n' });
 		Bun.spawnSync(['chmod', '+x', join(r.dir, '.git/hooks/pre-commit')]);
 
-		let proc = Bun.spawn(['bun', join(import.meta.dirname, '..', 'bin.js'), 'minor'], { cwd: r.dir, env: r.env, stderr: 'pipe' });
+		let proc = Bun.spawn([process.execPath, join(import.meta.dirname, '..', 'bin.js'), 'minor'], { cwd: r.dir, env: r.env, stderr: 'pipe' });
 		while (!(await Bun.file(join(r.dir, '.home/waiting')).exists())) await Bun.sleep(20);
 		proc.kill('SIGINT');
 
@@ -73,4 +74,24 @@ describe('cli', () => {
 		expect(h.git(r, 'status', '--porcelain')).toBe('');
 		expect(h.git(r, 'tag', '--list')).toBe('v1.0.0');
 	}, 20_000);
+
+	test('SIGTERM during the release undoes it, and exits 143', async () => {
+		let r = lockstep();
+		h.write(r, { '.git/hooks/pre-commit': '#!/bin/sh\ntouch .home/waiting\nsleep 5\n' });
+		Bun.spawnSync(['chmod', '+x', join(r.dir, '.git/hooks/pre-commit')]);
+		let proc = Bun.spawn([process.execPath, join(import.meta.dirname, '..', 'bin.js'), 'minor'], { cwd: r.dir, env: r.env, stderr: 'pipe' });
+		while (!(await Bun.file(join(r.dir, '.home/waiting')).exists())) await Bun.sleep(20);
+		proc.kill('SIGTERM');
+		expect(await proc.exited).toBe(143);
+		expect(h.git(r, 'status', '--porcelain')).toBe('');
+	}, 20_000);
+
+	test('--json prints an error on stderr only', () => {
+		let r = lockstep();
+		h.git(r, 'tag', '-d', 'v1.0.0');
+		let run = h.bump(r, 'minor', '--json');
+		expect(run.code).toBe(1);
+		expect(run.stdout).toBe('');
+		expect(run.stderr).toStartWith('error: no tag found');
+	});
 });

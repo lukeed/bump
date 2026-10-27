@@ -67,6 +67,7 @@ let parsed = (() => {
 		let code = Reflect.get(Object(err), 'code');
 		let option = /(--[\w-]+)/.exec(message)?.[1] ?? /'(-[^']+)'/.exec(message)?.[1] ?? '';
 		if (code === 'ERR_PARSE_ARGS_UNKNOWN_OPTION') fail(`Unknown option "${/'([^']+)'/.exec(message)?.[1] ?? option}"`);
+		if (code === 'ERR_PARSE_ARGS_INVALID_OPTION_VALUE' && message.includes('does not take an argument')) fail(`Option ${option} takes no value`);
 		if (code === 'ERR_PARSE_ARGS_INVALID_OPTION_VALUE') fail(`Missing value for ${option}`);
 		return fail(message);
 	}
