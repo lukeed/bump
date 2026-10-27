@@ -1,53 +1,74 @@
-export type Dict<T> = Record<string, T>;
+export type Type = 'major' | 'minor' | 'patch' | 'premajor' | 'preminor' | 'prepatch' | 'prerelease';
 
-export type Manifest = {
-	name: string;
-	version: string;
-	private?: boolean | string;
-	dependencies?: Dict<string>;
-	devDependencies?: Dict<string>;
-	peerDependencies?: Dict<string>;
-	optionalDependencies?: Dict<string>;
-};
+export type Ecosystem = 'npm' | 'cargo';
 
-export type Package = {
-	name: string;
-	/** The real path of the package folder. */
-	dir: string;
-	/** The path of its `package.json` file. */
-	file: string;
-	contents: Manifest;
-};
-
-export type Graph = Map<Package['name'], Package>;
-
-export type Config = {
-	/** The version of the last release. */
-	version: string;
-	/** The message of the release commit and tag. @default 'v{VERSION}' */
-	message?: string;
-	/** Folders that hold packages, relative to `bump.json`. @default 'packages' */
-	packages?: string | string[];
-	/** The folder of `bump.json` is the only package. */
-	single?: boolean;
-	/** Bump every package on each release, changed or not. @default false */
-	all?: boolean;
-};
-
-export type Version = 'major' | 'minor' | 'patch' | 'premajor' | 'preminor' | 'prepatch';
+export type Reason = 'target' | 'first' | 'adopted' | 'changed' | 'all' | 'dependent';
 
 export type Options = {
-	/** The folder to find `bump.json` from. @default '.' */
+	/** The folder to start from. @default '.' */
 	cwd?: string;
-	/** Print the changes, and write nothing. @default false */
-	dryrun?: boolean;
-	/** Bump every package, changed or not. @default `all` of bump.json */
+	/** Release only these packages or groups, and their dependents. Independent mode only. */
+	targets?: string[];
+	/** Release every unit, changed or not. @default false */
 	all?: boolean;
+	/** The id of a new prerelease line. @default `preid` of bump.json, else 'next' */
+	preid?: string;
+	/** Release units that have no tag for their manifest version, as changed. @default false */
+	adopt?: boolean;
+	/** Do every check, and write nothing. @default false */
+	dryrun?: boolean;
+	/** Receives each log line. Without it, nothing is printed. */
+	log?: (line: string) => void;
 };
 
+export type Result = {
+	dryrun: boolean;
+	/** The input type, or 'exact' for an exact version. */
+	type: Type | 'exact';
+	/** The full SHA of the release commit. */
+	commit: string | null;
+	/** The subject of the release commit. */
+	message: string | null;
+	units: Result.Unit[];
+	ranges: Result.Range[];
+	/** The written files, relative to the git top level. */
+	files: string[];
+};
+
+export namespace Result {
+	type Unit = {
+		/** The group or package name, `null` in lockstep mode. */
+		name: string | null;
+		type: Type | 'exact';
+		tag: string;
+		from: string;
+		to: string;
+		reason: Reason;
+		packages: Package[];
+	};
+
+	type Package = {
+		name: string;
+		ecosystem: Ecosystem;
+		/** The package folder, relative to the git top level. */
+		dir: string;
+		publish: boolean;
+	};
+
+	type Range = {
+		file: string;
+		/** The package that lists the dependency, `null` for `[workspace.dependencies]`. */
+		package: string | null;
+		dependency: string;
+		field: string;
+		from: string;
+		to: string;
+	};
+}
+
 /**
- * Bump the packages that changed since the last release, and the packages that depend on them.
- * Then commit the files and add a `v{VERSION}` tag.
- * @example await version('minor', { cwd: 'repo' });
+ * Release the units that changed since their last tag, and the units that depend on them.
+ * Then commit the files and add one annotated tag per unit.
+ * @example let result = await version('minor', { cwd: 'repo' });
  */
-export function version(type: Version, options?: Options): Promise<void>;
+export function version(input: Type | string, options?: Options): Promise<Result>;
