@@ -205,3 +205,20 @@ describe('json', () => {
 		expect(dry.units[0].packages[0].publish).toBe(false);
 	});
 });
+
+describe('edge cases', () => {
+	test('a seed prerelease of another form names its unit', () => {
+		let r = independent({ app: ['1.3.0-0'] });
+		h.commit(r, { 'packages/app/x.js': '1' });
+		expect(h.bump(r, 'prerelease').stderr).toBe('error: Cannot continue the "1.3.0-0" prerelease of "app"; use an exact version\n');
+	});
+
+	test('a group name with "$" stays literal in tags', () => {
+		let r = independent({ a: ['1.0.0'] }, { groups: { 'a$&b': ['a'] } });
+		h.git(r, 'tag', '-d', 'a@1.0.0');
+		h.tag(r, 'a$&b@1.0.0');
+		h.commit(r, { 'packages/a/x.js': '1' });
+		expect(h.bump(r, 'patch').code).toBe(0);
+		expect(h.git(r, 'tag', '--points-at', 'HEAD')).toBe('a$&b@1.0.1');
+	});
+});

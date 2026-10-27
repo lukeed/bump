@@ -82,7 +82,11 @@ export function plan(input: Input): Pick[] {
 	let next = new Map<Unit, string>();
 	let types = new Map<Unit, Type | 'exact'>();
 	for (let unit of seeds.keys()) {
-		next.set(unit, input.exact ?? semver.inc(unit.version, input.type ?? 'patch', input.preid, input.base));
+		try {
+			next.set(unit, input.exact ?? semver.inc(unit.version, input.type ?? 'patch', input.preid, input.base));
+		} catch {
+			throw new Error(`Cannot continue the "${unit.version}" prerelease of "${units.label(unit)}"; use an exact version`);
+		}
 		types.set(unit, input.exact ? 'exact' : input.type ?? 'patch');
 	}
 
