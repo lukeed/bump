@@ -74,7 +74,7 @@ export function repo(files: Record<string, string>, opts: { tag?: string | false
  * @example git(r, 'log', '-1', '--format=%s') //=> 'v1.1.0'
  */
 export function git(r: Repo, ...args: string[]): string {
-	return execFileSync('git', args, { cwd: r.dir, env: r.env, encoding: 'utf8' }).trim();
+	return execFileSync('git', args, { cwd: r.dir, env: r.env, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] }).trim();
 }
 
 /**
@@ -111,7 +111,7 @@ export function commit(r: Repo, files: Record<string, string>, message = 'change
  * @example let { code, stdout } = bump(r, 'minor');
  */
 export function bump(r: Repo, ...args: string[]): Run {
-	let proc = spawnSync('bun', [BIN, ...args], { cwd: r.dir, env: r.env, encoding: 'utf8' });
+	let proc = spawnSync(process.execPath, [BIN, ...args], { cwd: r.dir, env: r.env, encoding: 'utf8' });
 	return { code: proc.status ?? 1, stdout: proc.stdout, stderr: proc.stderr };
 }
 
