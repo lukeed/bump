@@ -66,6 +66,12 @@ export namespace Result {
 	};
 }
 
+/** The error of a release that stopped for a signal, after its undo. */
+export class Interrupt extends Error {
+	signal: 'SIGINT' | 'SIGTERM';
+	constructor(signal: 'SIGINT' | 'SIGTERM');
+}
+
 /**
  * Release the units that changed since their last tag, and the units that depend on them.
  * Then commit the files and add one annotated tag per unit.

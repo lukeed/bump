@@ -764,7 +764,13 @@ export type Options = {
 };
 
 export function version(input: Type | string, options?: Options): Promise<Result>;
+
+export class Interrupt extends Error {
+  signal: 'SIGINT' | 'SIGTERM';
+}
 ```
+
+The package exports `.` (`index.js` with `index.d.ts`) and `./package.json`. `version()` throws an `Interrupt` after the undo of a release that a signal stopped.
 
 - `Result` is the object of §13.2.
 - Without `log`, the library prints nothing. Warnings go to `log` too, with their `warning: ` prefix.

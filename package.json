@@ -2,6 +2,15 @@
   "name": "bump",
   "version": "1.0.0-next.2",
   "license": "MIT",
+  "type": "module",
+  "exports": {
+    ".": {
+      "types": "./index.d.ts",
+      "default": "./index.js"
+    },
+    "./package.json": "./package.json"
+  },
+  "types": "./index.d.ts",
   "bin": {
     "bump": "bin.js"
   },

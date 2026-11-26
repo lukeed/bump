@@ -8,9 +8,9 @@ import type { Lockfile } from './lockfile';
 
 /** A release that stopped for a signal, after its undo. */
 export class Interrupt extends Error {
-	signal: NodeJS.Signals;
+	signal: 'SIGINT' | 'SIGTERM';
 
-	constructor(signal: NodeJS.Signals) {
+	constructor(signal: 'SIGINT' | 'SIGTERM') {
 		super(`Stopped by ${signal}; the release was undone`);
 		this.signal = signal;
 	}
@@ -44,7 +44,7 @@ export async function release(input: Input): Promise<Output> {
 	let originals = new Map<string, Buffer>();
 	for (let file of [...input.edits.keys(), ...input.locks.map(lock => lock.file)]) originals.set(file, readFileSync(file));
 
-	let signal: NodeJS.Signals | undefined;
+	let signal: Interrupt['signal'] | undefined;
 	let onInt = () => void (signal ??= 'SIGINT');
 	let onTerm = () => void (signal ??= 'SIGTERM');
 	process.on('SIGINT', onInt);
