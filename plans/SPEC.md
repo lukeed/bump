@@ -34,7 +34,7 @@ Out of scope: publishing to registries, pushing to remotes, changelogs and relea
 ## 3. Runtime and dependencies
 
 - The runtime is Bun 1.4 or later. The program uses Bun built-ins: `Bun.Glob`, `Bun.TOML.parse`, `Bun.YAML.parse`, `Bun.semver.order`, and `node:child_process` or `Bun.spawn` for `git`.
-- The program needs no third-party runtime dependency.
+- The only runtime dependency is `@lukeed/jsonc`, for the config file.
 - `git` must be on `PATH`. If it is not there, the error is `Missing "git" binary`.
 - To update npm lockfiles, the matching package manager must be on `PATH` (§12.5).
 - Distribution (npm package, compiled binaries) is out of scope for this document.
@@ -136,14 +136,14 @@ Conflicts, each an error:
 ### 5.1 Root
 
 1. Find the git top level of `--cwd`. If `--cwd` is not in a git repository, the error is `Not a git repository: "<dir>"`.
-2. From `--cwd`, search upward for `bump.json`. Stop after the git top level. The first directory that has it is the **root**.
-3. If no `bump.json` is found, the root is the git top level.
+2. From `--cwd`, search upward for `bump.json` or `bump.jsonc`. Stop after the git top level. The first directory that has one is the **root**. A directory with both files is an error: `Keep one of "<bump.json>" and "<bump.jsonc>"`.
+3. If no config file is found, the root is the git top level.
 
 All paths in the config are relative to the root. Git prints paths relative to the git top level. Convert both to absolute paths before any compare.
 
 ### 5.2 `bump.json`
 
-The file is optional. Without it, all defaults apply.
+The file is optional. Without it, all defaults apply. Both names are parsed as JSONC with `@lukeed/jsonc`, so comments and trailing commas are allowed in either one.
 
 ```jsonc
 {
@@ -177,7 +177,7 @@ Validation, each an error that names the key:
   - `all`: `"all" was removed: use --all`.
 - A non-empty `groups` in lockstep mode. An empty `{}` is allowed.
 - A value of the wrong type, an empty `packages` array, an empty group.
-- A file that is not valid JSON.
+- A file that is not valid JSONC.
 
 ### 5.3 Templates
 

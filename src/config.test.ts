@@ -97,4 +97,15 @@ describe('load', () => {
 		await expect(load({ $schema: 'x', tag: 'v{version}-{version}', message: '{tags} ({version})' })).resolves.toBeDefined();
 	});
 
+	test('reads bump.jsonc and bump.json as JSONC, but not both', async () => {
+		let text = '{\n\t// lockstep\n\t"preid": "rc", /* why */\n\t"packages": ["packages/*",],\n}\n';
+		let jsonc = h.repo({ 'bump.jsonc': text });
+		expect(await config.load(jsonc.dir)).toMatchObject({ root: jsonc.dir, preid: 'rc', packages: ['packages/*'] });
+
+		let json = h.repo({ 'bump.json': text });
+		expect(await config.load(json.dir)).toMatchObject({ preid: 'rc' });
+
+		let both = h.repo({ 'bump.json': '{}', 'bump.jsonc': '{}' });
+		await expect(config.load(both.dir)).rejects.toThrow(`Keep one of "${join(both.dir, 'bump.json')}" and "${join(both.dir, 'bump.jsonc')}"`);
+	});
 });

@@ -1,6 +1,8 @@
 import { existsSync, readFileSync, realpathSync, statSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 
+import * as jsonc from '@lukeed/jsonc';
+
 import * as git from './git';
 import * as semver from './semver';
 
@@ -18,7 +20,7 @@ export type Config = {
 	message: string;
 };
 
-const FILE = 'bump.json';
+const FILES = ['bump.json', 'bump.jsonc'];
 
 const REMOVED: Record<string, string> = {
 	version: '"version" was removed: versions come from the manifests',
@@ -27,7 +29,7 @@ const REMOVED: Record<string, string> = {
 };
 
 /**
- * Find the root from `cwd`, and read and check its `bump.json` file, if any.
+ * Find the root from `cwd`, and read and check its `bump.json` or `bump.jsonc` file, if any.
  * @example let config = await load('repo/packages/a');
  */
 export async function load(cwd: string): Promise<Config> {
@@ -38,7 +40,9 @@ export async function load(cwd: string): Promise<Config> {
 	let top = await git.top(start);
 	let file: string | undefined;
 	for (let dir = start; !file; dir = dirname(dir)) {
-		if (existsSync(join(dir, FILE))) file = join(dir, FILE);
+		let found = FILES.map(name => join(dir, name)).filter(path => existsSync(path));
+		if (found.length > 1) throw new Error(`Keep one of "${found.join('" and "')}"`);
+		if (found.length) file = found[0];
 		else if (dir === top || dir === dirname(dir)) break;
 	}
 
@@ -47,7 +51,7 @@ export async function load(cwd: string): Promise<Config> {
 
 	if (file) {
 		try {
-			var parsed: unknown = JSON.parse(readFileSync(file, 'utf8'));
+			var parsed = jsonc.parse<unknown>(readFileSync(file, 'utf8').replace(/^\uFEFF/, ''));
 		} catch (err) {
 			throw new Error(`Invalid JSON in "${file}": ${err instanceof Error ? err.message : String(err)}`);
 		}

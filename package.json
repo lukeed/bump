@@ -22,5 +22,8 @@
     "@types/bun": "^1.4.3",
     "@types/node": "^24.19.2",
     "typescript": "7.0.2"
+  },
+  "dependencies": {
+    "@lukeed/jsonc": "^1.0.0"
   }
 }
