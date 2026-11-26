@@ -147,7 +147,7 @@ The file is optional. Without it, all defaults apply. Both names are parsed as J
 
 ```jsonc
 {
-  "$schema": "<url of the published JSON schema>",
+  "$schema": "https://unpkg.com/bump/schema.json",
   "independent": true,
   "packages": ["packages/*", "crates/*", "!packages/internal-*"],
   "groups": {
@@ -161,7 +161,7 @@ The file is optional. Without it, all defaults apply. Both names are parsed as J
 
 | Key | Type | Default | Rule |
 |---|---|---|---|
-| `$schema` | string | — | Ignored. Lets editors validate the file. |
+| `$schema` | string | — | Ignored. Lets editors validate the file against `schema.json` (§13.4). |
 | `independent` | boolean | `false` | Selects the mode. |
 | `packages` | string, or non-empty string[] | workspace discovery (§6.2) | Directory globs (§6.1). A string is one pattern. |
 | `groups` | object of non-empty string[] | `{}` | Independent mode only (§7.2). |
@@ -753,7 +753,17 @@ With `--json`, an error is plain text on stderr and exit code 1, with nothing on
 ```ts
 export type Type = 'major' | 'minor' | 'patch' | 'premajor' | 'preminor' | 'prepatch' | 'prerelease';
 
-export type Options = {
+export type Config = {
+  $schema?: string;
+  independent?: boolean;
+  packages?: string | [string, ...string[]];
+  groups?: Record<string, [string, ...string[]]>;
+  preid?: string;
+  tag?: string;
+  message?: string;
+};
+
+export type Options = Omit<Config, '$schema' | 'preid'> & {
   cwd?: string;
   targets?: string[];
   all?: boolean;
@@ -770,11 +780,17 @@ export class Interrupt extends Error {
 }
 ```
 
-The package exports `.` (`index.js` with `index.d.ts`) and `./package.json`. `version()` throws an `Interrupt` after the undo of a release that a signal stopped.
+The package exports `.` (`index.js` with `index.d.ts`), `./schema.json`, and `./package.json`. `version()` throws an `Interrupt` after the undo of a release that a signal stopped.
 
+- `Config` is the shape of the config file (§5.2).
+- `Options` takes every `Config` key except `$schema` and `preid`. An inline key replaces the same key of the config file, and its errors end with `in the options`. `Options.preid` is the `--preid` override of §10.3, not the config default.
 - `Result` is the object of §13.2.
 - Without `log`, the library prints nothing. Warnings go to `log` too, with their `warning: ` prefix.
 - Errors are thrown as `Error` objects with the messages of this document. The CLI prints them as §4.4 says.
+
+### 13.4 JSON schema
+
+The build generates `schema.json` from the `Config` type in `index.d.ts`, with `ts-json-schema-generator` (it brings its own TypeScript 5, because TypeScript 7 has no compiler API). JSDoc tags carry the rules a type cannot: `@pattern` for `preid`, `@minLength` for `tag` and `message`, and `@default` values. The placeholder rules of §5.3 stay runtime checks only. A test checks that the schema keys equal the keys that §5.2 accepts.
 
 ## 14. Git operations
 

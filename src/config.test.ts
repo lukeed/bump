@@ -108,4 +108,23 @@ describe('load', () => {
 		let both = h.repo({ 'bump.json': '{}', 'bump.jsonc': '{}' });
 		await expect(config.load(both.dir)).rejects.toThrow(`Keep one of "${join(both.dir, 'bump.json')}" and "${join(both.dir, 'bump.jsonc')}"`);
 	});
+
+	test('inline options replace the file, and name their source in errors', async () => {
+		let r = h.repo({ 'bump.json': '{ "independent": true, "tag": "{name}-v{version}" }' });
+		expect(await config.load(r.dir, { tag: '{name}@{version}', packages: 'crates/*' })).toMatchObject({ independent: true, tag: '{name}@{version}', packages: ['crates/*'] });
+		await expect(config.load(r.dir, { independent: false })).rejects.toThrow(`Unknown "{name}" placeholder in "tag" in "${join(r.dir, 'bump.json')}"`);
+		await expect(config.load(r.dir, { tag: 'v{version}' })).rejects.toThrow('Missing "{name}" placeholder in "tag" in the options');
+		await expect(config.load(h.repo({}).dir, { independent: true, groups: { g: [] as unknown as [string] } })).rejects.toThrow('"groups.g" must be a non-empty array of package names in the options');
+	});
+});
+
+describe('schema', () => {
+	test('matches the keys that a config file can hold', async () => {
+		let schema = await Bun.file(join(import.meta.dirname, '..', 'schema.json')).json();
+		let { properties, additionalProperties } = schema.definitions.Config;
+		expect(Object.keys(properties).sort()).toEqual([...config.KEYS].sort());
+		expect(additionalProperties).toBe(false);
+		expect(new RegExp(properties.preid.pattern).test('rc')).toBe(true);
+		expect(new RegExp(properties.preid.pattern).test('7')).toBe(false);
+	});
 });

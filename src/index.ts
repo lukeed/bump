@@ -49,7 +49,13 @@ export async function version(input: Type | string, options: Options = {}): Prom
 		if (!semver.identifier(options.preid)) throw new Error(`Invalid --preid value: "${options.preid}"`);
 	}
 
-	let conf = await config.load(options.cwd ?? '.');
+	let conf = await config.load(options.cwd ?? '.', {
+		independent: options.independent,
+		packages: options.packages,
+		groups: options.groups,
+		tag: options.tag,
+		message: options.message,
+	});
 	if (targets.length && !conf.independent) throw new Error('Targets need "independent": true in bump.json');
 
 	let { top, root } = conf;

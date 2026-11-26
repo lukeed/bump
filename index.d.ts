@@ -4,14 +4,53 @@ export type Ecosystem = 'npm' | 'cargo';
 
 export type Reason = 'target' | 'first' | 'adopted' | 'changed' | 'all' | 'dependent';
 
-export type Options = {
+export type Config = {
+	/** The JSON schema of this file, for editors. */
+	$schema?: string;
+	/**
+	 * Give each package, or each group, its own version and tag.
+	 * Without it, all packages share one version and one tag.
+	 * @default false
+	 */
+	independent?: boolean;
+	/**
+	 * Folder globs, relative to this file. A glob that starts with "!" excludes.
+	 * Without it, each ecosystem uses its workspace files, else the root folder.
+	 */
+	packages?: string | [string, ...string[]];
+	/**
+	 * Packages that always release together, with one version and one tag, by group name.
+	 * Only in independent mode.
+	 */
+	groups?: Record<string, [string, ...string[]]>;
+	/**
+	 * The id of a new prerelease line.
+	 * @pattern ^(?![0-9]+$)[0-9A-Za-z-]+$
+	 * @default "next"
+	 */
+	preid?: string;
+	/**
+	 * The tag name. "{version}" is required; "{name}" is required in independent mode, and not allowed without it.
+	 * Without it: "v{version}", or "{name}@{version}" in independent mode.
+	 * @minLength 1
+	 */
+	tag?: string;
+	/**
+	 * The subject of the release commit. "{tags}" is the new tags; "{version}" works only without independent mode.
+	 * Without it: "v{version}", or "release: {tags}" in independent mode.
+	 * @minLength 1
+	 */
+	message?: string;
+};
+
+export type Options = Omit<Config, '$schema' | 'preid'> & {
 	/** The folder to start from. @default '.' */
 	cwd?: string;
 	/** Release only these packages or groups, and their dependents. Independent mode only. */
 	targets?: string[];
 	/** Release every unit, changed or not. @default false */
 	all?: boolean;
-	/** The id of a new prerelease line. @default `preid` of bump.json, else 'next' */
+	/** The id of a new prerelease line. It also replaces the id of a continued line, and the `preid` of the config file. */
 	preid?: string;
 	/** Release units that have no tag for their manifest version, as changed. @default false */
 	adopt?: boolean;

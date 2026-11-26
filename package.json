@@ -8,6 +8,7 @@
       "types": "./index.d.ts",
       "default": "./index.js"
     },
+    "./schema.json": "./schema.json",
     "./package.json": "./package.json"
   },
   "types": "./index.d.ts",
@@ -17,19 +18,22 @@
   "files": [
     "bin.js",
     "index.js",
-    "index.d.ts"
+    "index.d.ts",
+    "schema.json"
   ],
   "engines": {
     "bun": ">=1.4"
   },
   "scripts": {
-    "build": "bun build src/index.ts --outfile index.js --target bun && bun build src/cli.ts --outfile bin.js --target bun",
+    "build": "bun build src/index.ts --outfile index.js --target bun && bun build src/cli.ts --outfile bin.js --target bun && bun run schema",
+    "schema": "ts-json-schema-generator --path index.d.ts --type Config --tsconfig tsconfig.json --no-type-check --out schema.json",
     "types": "tsc",
     "test": "bun test"
   },
   "devDependencies": {
     "@types/bun": "^1.4.3",
     "@types/node": "^24.19.2",
+    "ts-json-schema-generator": "^2.10.0",
     "typescript": "7.0.2"
   },
   "dependencies": {
