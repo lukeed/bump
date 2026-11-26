@@ -1,76 +1,112 @@
-# bump
+<h1 align="center">bump</h1>
 
-Release the packages of a git repository. `bump` finds the packages that changed since their last tag, writes their new versions and internal dependency ranges, and makes one release commit with one annotated tag per release.
+<div align="center">
+  <a href="https://npmjs.org/package/bump">
+    <img src="https://badgen.now.sh/npm/v/bump" alt="version" />
+  </a>
+  <a href="https://github.com/lukeed/bump/actions">
+    <img src="https://github.com/lukeed/bump/workflows/CI/badge.svg" alt="CI" />
+  </a>
+  <a href="https://licenses.dev/npm/bump">
+    <img src="https://licenses.dev/b/npm/bump" alt="licenses" />
+  </a>
+</div>
 
-It works with `package.json` and `Cargo.toml` packages, also mixed in one repository. It does not publish or push.
+<div align="center">Release the packages that changed. Nothing else.</div>
+
+<br />
+
+`bump` looks at what changed since your last release, bumps those packages (and the ones that depend on them), then makes **one** commit with a tag per release. That's it. It doesn't publish & it doesn't push ~ that's your call.
+
+And, of course, in mandatory bullet-point format:
+
+* Works with `package.json` _and_ `Cargo.toml` packages, even mixed in one repo
+* Lockstep (one version for all) or independent (each package or group on its own)
+* Only the version strings change ~ your comments & formatting stay put
+* Updates `Cargo.lock`, `package-lock.json`, `bun.lock`, `pnpm-lock.yaml`, and `yarn.lock` (Yarn 2+) in the same commit
+* If anything fails, it undoes the files, the commit, _and_ the tags
+
+> **Heads up:** `bump` runs on [Bun](https://bun.sh) 1.4+ for now.
 
 ## Install
 
-`bump` runs on [Bun](https://bun.sh) 1.4 or later.
-
 ```sh
-bun add -d bump
+$ bun add --dev bump
 ```
 
 ## Usage
 
 ```sh
-bump <type | version> [...targets] [options]
+$ bump patch                    # release what changed
+$ bump minor --dryrun           # see what would happen, write nothing
+$ bump prerelease --preid rc    # 1.3.0-next.2 -> 1.3.0-rc.0
+$ bump 2.0.0 @acme/cli          # an exact version, for one package
+$ bump minor --json             # the result as JSON, for CI
 ```
 
-```sh
-bump patch                     # release what changed
-bump minor --dryrun            # print the release, write nothing
-bump prerelease --preid rc     # 1.3.0-next.2 → 1.3.0-rc.0
-bump 2.0.0 @acme/cli           # an exact version for one target
-bump minor --json              # the result as JSON, for CI
-```
-
-Types: `major`, `minor`, `patch`, `premajor`, `preminor`, `prepatch`, `prerelease`, or an exact version.
-
-Run `bump --help` for all options.
+The first argument is a type (`major`, `minor`, `patch`, `premajor`, `preminor`, `prepatch`, `prerelease`) or an exact version. Anything after it is a target. Run `bump --help` for every option.
 
 ## How it works
 
-- The version in each manifest is the current version. The tag of that version marks the commit to compare against.
-- Packages are found from your workspace files (`workspaces` in `package.json`, `pnpm-workspace.yaml`, or `[workspace]` in `Cargo.toml`), or from `packages` in `bump.json`.
-- **Lockstep mode** (the default): all packages share one version and one `v{version}` tag.
-- **Independent mode**: each package, or each group of packages, has its own version and a `{name}@{version}` tag. A package that depends on a released package gets a patch release.
-- Each manifest keeps its format. Only the version strings change.
-- `Cargo.lock` and npm lockfiles (npm, bun, pnpm, Yarn 2+) are updated in the same commit.
-- If any step fails, `bump` undoes the files, the commit, and the tags.
+The version in each manifest is the source of truth. Its tag (`v1.2.0` or `app@1.2.0`) marks the commit to diff against. If those two ever disagree, `bump` stops and tells you why.
 
-## Configuration
+Packages come from your workspace files (`workspaces` in `package.json`, `pnpm-workspace.yaml`, or `[workspace]` in `Cargo.toml`), or from `packages` in your config.
 
-`bump.json` is optional. Put it in the repository root.
+A package at `0.0.0` with no tag is a first release. Already have versions but no matching tags? Either tag your last release commit, or run once with `--adopt`.
 
-```json
+## Config
+
+A `bump.json` _or_ `bump.jsonc` file is optional. Both allow comments & trailing commas.
+
+```jsonc
 {
+  "$schema": "https://unpkg.com/bump/schema.json",
   "independent": true,
   "packages": ["packages/*", "crates/*", "!packages/internal-*"],
   "groups": {
-    "web": ["@acme/ui", "@acme/app"]
+    // these always release together
+    "web": ["@acme/ui", "@acme/app"],
   },
   "preid": "next",
   "tag": "{name}@{version}",
-  "message": "release: {tags}"
+  "message": "release: {tags}",
 }
 ```
 
+## API
+
+```js
+import { version } from 'bump';
+
+let result = await version('minor', {
+  cwd: 'path/to/repo',
+  dryrun: true,
+  log: console.log,
+});
+
+console.log(result.units);
+//=> [{ name: 'core', from: '1.2.0', to: '1.3.0', reason: 'changed', ... }]
+```
+
+### version(input, options?)
+Returns: `Promise<Result>`
+
+The `input` is a type or an exact version, same as the CLI.
+
+The `options` take every config key (except `$schema`), plus `cwd`, `targets`, `all`, `adopt`, `dryrun`, and `log`. An inline key wins over the config file. Without `log`, nothing is printed.
+
+If a `SIGINT` or `SIGTERM` stops a release, the release is undone and `version()` throws an `Interrupt` error with its `signal`.
+
 ## CI
 
-`bump` needs the full history and all tags. With GitHub Actions:
+`bump` needs your full history and every tag. With GitHub Actions:
 
 ```yaml
-- uses: actions/checkout@v4
+- uses: actions/checkout@v7
   with:
     fetch-depth: 0
 ```
 
-## First release
-
-A package at `0.0.0` without a tag is a first release. For a repository that already has versions but no matching tags, either tag the last release commit, or run once with `--adopt`.
-
 ## License
 
-MIT
+MIT © [Luke Edwards](https://lukeed.com)
