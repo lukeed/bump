@@ -111,4 +111,13 @@ describe('edit', () => {
 		let changes = [{ path: ['a'], value: '22' }, { path: ['a'], value: '3' }];
 		expect(() => edit.edit('Cargo.toml', 'a = "1"\n', changes)).toThrow('Failed to edit "Cargo.toml": the result does not match the intended changes');
 	});
+
+	test('edits JSONC and keeps its comments and trailing commas', () => {
+		let text = '{\n\t// the app\n\t"name": "a", /* "version": "0.0.0" */\n\t"version": "1.0.0",\n\t"dependencies": { "b": "^1.0.0", },\n}\n';
+		let out = edit.edit('package.json', text, [
+			{ path: ['version'], value: '1.1.0' },
+			{ path: ['dependencies', 'b'], value: '^1.1.0' },
+		]);
+		expect(out).toBe(text.replace('"1.0.0"', '"1.1.0"').replace('"^1.0.0"', '"^1.1.0"'));
+	});
 });

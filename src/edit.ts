@@ -1,3 +1,5 @@
+import * as jsonc from '@lukeed/jsonc';
+
 import * as json from './json';
 import * as toml from './toml';
 
@@ -22,11 +24,11 @@ export type Change = {
  * @example edit('package.json', '{ "version": "1.0.0" }', [{ path: ['version'], value: '1.1.0' }]) //=> '{ "version": "1.1.0" }'
  */
 export function edit(file: string, text: string, changes: Change[]): string {
-	let format = file.endsWith('.json') ? json : toml;
-	let parse = file.endsWith('.json') ? (input: string) => JSON.parse(input.replace(/^\uFEFF/, '')) : Bun.TOML.parse;
+	let isJSON = file.endsWith('.json');
+	let parse = isJSON ? (input: string) => jsonc.parse<unknown>(input.replace(/^\uFEFF/, '')) : Bun.TOML.parse;
 
 	let spans = new Map<string, Span>();
-	for (let span of format.scan(text)) spans.set(JSON.stringify(span.path), span);
+	for (let span of isJSON ? json.scan(jsonc.toJSON(text)) : toml.scan(text)) spans.set(JSON.stringify(span.path), span);
 
 	let found = changes.map(change => {
 		if (/["'\\\n\r]/.test(change.value)) throw new Error(`Cannot write "${change.value}" into "${file}"`);

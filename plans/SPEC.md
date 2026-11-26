@@ -34,7 +34,7 @@ Out of scope: publishing to registries, pushing to remotes, changelogs and relea
 ## 3. Runtime and dependencies
 
 - The runtime is Bun 1.4 or later. The program uses Bun built-ins: `Bun.Glob`, `Bun.TOML.parse`, `Bun.YAML.parse`, `Bun.semver.order`, and `node:child_process` or `Bun.spawn` for `git`.
-- The only runtime dependency is `@lukeed/jsonc`, for the config file.
+- The only runtime dependency is `@lukeed/jsonc`, for the config file and for `package.json` files with comments.
 - `git` must be on `PATH`. If it is not there, the error is `Missing "git" binary`.
 - To update npm lockfiles, the matching package manager must be on `PATH` (§12.5).
 - Distribution (npm package, compiled binaries) is out of scope for this document.
@@ -246,6 +246,7 @@ Common rules:
 
 npm:
 
+- The file is parsed with `jsonc.parse` (Bun allows comments and trailing commas in `package.json`).
 - `name` and `version` are the top-level keys.
 - `publish` is `false` when `"private": true`, else `true`.
 
@@ -608,7 +609,7 @@ All edits are computed first, checked, and written only after every check passes
 
 Every format is edited by replacing only the characters of the old value inside its quotes. The rest of the file stays byte for byte the same: comments, key order, whitespace, indentation, line endings, the final newline.
 
-- **JSON**: find the value by its key path. Do not serialize the file again: `JSON.stringify` changes escapes and number formats.
+- **JSON**: find the value by its key path. Do not serialize the file again: `JSON.stringify` changes escapes and number formats. Bun accepts comments and trailing commas in `package.json`, so scan the output of `jsonc.toJSON(text)`: it turns them into spaces and keeps every offset, so the spans apply to the original text. The parse-again check uses `jsonc.parse`.
 - **TOML**: any valid TOML way of writing the keys must work. This includes:
   - standard tables (`[package]`, `[dependencies.foo]`, `[workspace.package]`);
   - array tables (`[[package]]` in `Cargo.lock`);

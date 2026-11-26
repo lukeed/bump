@@ -339,4 +339,12 @@ describe('ownership and formats', () => {
 		expect(h.bump(r, 'patch').code).toBe(0);
 		expect(h.read(r, 'packages/a/package.json')).toBe(text.replace('1.0.0', '1.0.1'));
 	});
+
+	test('releases a package.json with comments, as Bun allows', () => {
+		let text = '{\n\t// shared helpers\n\t"name": "a",\n\t"version": "1.0.0",\n}\n';
+		let r = h.repo({ ...ROOT, 'packages/a/package.json': text }, { tag: 'v1.0.0' });
+		h.commit(r, { 'packages/a/x.js': '1' });
+		expect(h.bump(r, 'patch').code).toBe(0);
+		expect(h.read(r, 'packages/a/package.json')).toBe(text.replace('1.0.0', '1.0.1'));
+	});
 });

@@ -1,6 +1,8 @@
 import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 
+import * as jsonc from '@lukeed/jsonc';
+
 import * as semver from './semver';
 
 import type { Package } from './find';
@@ -13,12 +15,12 @@ const FIELDS = {
 } as const;
 
 /**
- * Parse a JSON file, with the file name in the error.
+ * Parse a JSON or JSONC file, with the file name in the error.
  * @example let pkg = parse('packages/a/package.json');
  */
 export function parse(file: string): Record<string, unknown> {
 	try {
-		var value: unknown = JSON.parse(readFileSync(file, 'utf8').replace(/^\uFEFF/, ''));
+		var value = jsonc.parse<unknown>(readFileSync(file, 'utf8').replace(/^\uFEFF/, ''));
 	} catch (err) {
 		throw new Error(`Invalid JSON in "${file}": ${err instanceof Error ? err.message : String(err)}`);
 	}
