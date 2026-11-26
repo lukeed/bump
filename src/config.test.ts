@@ -7,11 +7,16 @@ import * as config from './config';
 import * as h from './harness';
 
 beforeAll(h.build);
-afterEach(h.clean);
+afterEach(() => {
+	h.clean();
+	shared = undefined;
+});
 
+let shared: h.Repo | undefined;
 let load = (json: unknown) => {
-	let r = h.repo({ 'bump.json': typeof json === 'string' ? json : JSON.stringify(json) });
-	return config.load(r.dir);
+	shared ??= h.repo({});
+	h.write(shared, { 'bump.json': typeof json === 'string' ? json : JSON.stringify(json) });
+	return config.load(shared.dir);
 };
 
 describe('load', () => {
@@ -91,4 +96,5 @@ describe('load', () => {
 		await expect(load({ groups: {} })).resolves.toBeDefined();
 		await expect(load({ $schema: 'x', tag: 'v{version}-{version}', message: '{tags} ({version})' })).resolves.toBeDefined();
 	});
+
 });
