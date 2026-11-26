@@ -12,7 +12,7 @@
   </a>
 </div>
 
-<div align="center">Release the packages that changed. Nothing else.</div>
+<div align="center">Version, commit, and tag the packages that changed.</div>
 
 <br />
 
