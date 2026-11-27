@@ -40,7 +40,7 @@ describe('load', () => {
 			writeFileSync(join(outer, 'bump.json'), '{ "independent": true }');
 			let r = h.repo({ 'sub/bump.json': '{ "independent": true, "packages": "*" }', 'sub/deep/x.txt': '' });
 			Bun.spawnSync(['mv', r.dir, join(outer, 'repo')]);
-			let dir = join(outer, 'repo');
+			let dir = realpathSync(h.git({ ...r, dir: join(outer, 'repo') }, 'rev-parse', '--show-toplevel'));
 			expect((await config.load(join(dir, 'sub/deep'))).root).toBe(join(dir, 'sub'));
 			expect(await config.load(dir)).toMatchObject({ root: dir, independent: false });
 		} finally {

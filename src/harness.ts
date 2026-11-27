@@ -46,7 +46,7 @@ export function clean(): void {
 export function repo(files: Record<string, string>, opts: { tag?: string | false; config?: string } = {}): Repo {
 	let temp = mkdtempSync(join(tmpdir(), 'bump-'));
 	made.push(temp);
-	execFileSync('git', ['init', '--quiet', temp], { stdio: 'ignore', env: { ...process.env, GIT_CONFIG_NOSYSTEM: '1' } });
+	execFileSync('git', ['init', '--quiet', '--initial-branch=main', temp], { stdio: 'ignore', env: { ...process.env, GIT_CONFIG_NOSYSTEM: '1' } });
 	let dir = realpathSync(execFileSync('git', ['rev-parse', '--show-toplevel'], { cwd: temp, encoding: 'utf8' }).trim());
 	let home = join(dir, '.home');
 	let bin = join(home, 'bin');
