@@ -2,6 +2,7 @@ import { execFileSync, spawnSync } from 'node:child_process';
 import { chmodSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { delimiter, dirname, join } from 'node:path';
+import { setDefaultTimeout } from 'bun:test';
 
 const ROOT = join(import.meta.dirname, '..');
 const BIN = join(ROOT, 'bin.js');
@@ -16,6 +17,9 @@ export type Run = {
 	stdout: string;
 	stderr: string;
 };
+
+// Windows runs these end-to-end tests about 4x slower than Linux.
+setDefaultTimeout(30_000);
 
 let made: string[] = [];
 let built = false;
