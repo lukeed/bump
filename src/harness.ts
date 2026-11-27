@@ -1,7 +1,7 @@
 import { execFileSync, spawnSync } from 'node:child_process';
 import { chmodSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
-import { dirname, join } from 'node:path';
+import { delimiter, dirname, join } from 'node:path';
 
 const ROOT = join(import.meta.dirname, '..');
 const BIN = join(ROOT, 'bin.js');
@@ -50,15 +50,13 @@ export function repo(files: Record<string, string>, opts: { tag?: string | false
 	let bin = join(home, 'bin');
 	mkdirSync(bin, { recursive: true });
 	writeFileSync(join(home, '.gitconfig'), `[user]\n\tname = Test\n\temail = test@example.com\n[init]\n\tdefaultBranch = main\n[advice]\n\tdetachedHead = false\n${opts.config ?? ''}`);
-	writeFileSync(join(bin, 'yarn'), '#!/bin/sh\nexec bunx @yarnpkg/cli-dist@4 "$@"\n');
-	chmodSync(join(bin, 'yarn'), 0o755);
 
 	let env = {
 		...process.env,
 		HOME: home,
 		GIT_CONFIG_GLOBAL: join(home, '.gitconfig'),
 		GIT_CONFIG_NOSYSTEM: '1',
-		PATH: `${bin}:${process.env.PATH}`,
+		PATH: [bin, join(ROOT, 'node_modules', '.bin'), process.env.PATH].join(delimiter),
 	};
 	let r = { dir, env };
 	write(r, { '.gitignore': '.home\n', ...files });
