@@ -58,7 +58,8 @@ describe('cli', () => {
 		expect(h.version(r, 'packages/a')).toBe('1.1.0');
 	});
 
-	test('SIGINT during the release undoes it, and exits 130', async () => {
+	// Windows has no signals to send: kill() ends the process at once.
+	test.skipIf(process.platform === 'win32')('SIGINT during the release undoes it, and exits 130', async () => {
 		let r = lockstep();
 		let head = h.git(r, 'rev-parse', 'HEAD');
 		h.write(r, { '.git/hooks/pre-commit': '#!/bin/sh\ntouch .home/waiting\nsleep 5\n' });
@@ -75,7 +76,7 @@ describe('cli', () => {
 		expect(h.git(r, 'tag', '--list')).toBe('v1.0.0');
 	}, 20_000);
 
-	test('SIGTERM during the release undoes it, and exits 143', async () => {
+	test.skipIf(process.platform === 'win32')('SIGTERM during the release undoes it, and exits 143', async () => {
 		let r = lockstep();
 		h.write(r, { '.git/hooks/pre-commit': '#!/bin/sh\ntouch .home/waiting\nsleep 5\n' });
 		Bun.spawnSync(['chmod', '+x', join(r.dir, '.git/hooks/pre-commit')]);

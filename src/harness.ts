@@ -35,7 +35,7 @@ export function build(): void {
  * @example afterEach(clean);
  */
 export function clean(): void {
-	for (let dir of made) rmSync(dir, { recursive: true, force: true });
+	for (let dir of made) rmSync(dir, { recursive: true, force: true, maxRetries: 10, retryDelay: 200 });
 	made = [];
 }
 
@@ -44,8 +44,10 @@ export function clean(): void {
  * @example let r = repo({ 'package.json': manifest('a', '1.0.0') }, { tag: 'v1.0.0' });
  */
 export function repo(files: Record<string, string>, opts: { tag?: string | false; config?: string } = {}): Repo {
-	let dir = realpathSync(mkdtempSync(join(tmpdir(), 'bump-')));
-	made.push(dir);
+	let temp = mkdtempSync(join(tmpdir(), 'bump-'));
+	made.push(temp);
+	execFileSync('git', ['init', '--quiet', temp], { stdio: 'ignore', env: { ...process.env, GIT_CONFIG_NOSYSTEM: '1' } });
+	let dir = realpathSync(execFileSync('git', ['rev-parse', '--show-toplevel'], { cwd: temp, encoding: 'utf8' }).trim());
 	let home = join(dir, '.home');
 	let bin = join(home, 'bin');
 	mkdirSync(bin, { recursive: true });
@@ -60,7 +62,6 @@ export function repo(files: Record<string, string>, opts: { tag?: string | false
 	};
 	let r = { dir, env };
 	write(r, { '.gitignore': '.home\n', ...files });
-	git(r, 'init', '--quiet');
 	git(r, 'add', '-A');
 	git(r, 'commit', '--quiet', '--no-gpg-sign', '--allow-empty', '-m', 'init');
 	if (opts.tag) tag(r, opts.tag);
@@ -167,4 +168,16 @@ export function sign(r: Repo, fail = false): void {
 	git(r, 'config', '--global', 'tag.gpgSign', 'true');
 	git(r, 'config', '--global', 'gpg.program', gpg(r, fail));
 	git(r, 'config', '--global', 'user.signingkey', 'FAKE');
+}
+
+/**
+ * Put a fake `name` program first on the PATH of the repository, which runs the `code` script with Bun.
+ * @example shim(r, 'npm', 'process.exit(1)');
+ */
+export function shim(r: Repo, name: string, code: string): void {
+	let file = join(r.dir, '.home', 'bin', name);
+	writeFileSync(`${file}.js`, code);
+	writeFileSync(file, `#!/bin/sh\nexec "${process.execPath}" "${file}.js" "$@"\n`);
+	chmodSync(file, 0o755);
+	writeFileSync(`${file}.cmd`, `@"${process.execPath}" "${file}.js" %*\r\n`);
 }

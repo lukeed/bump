@@ -1,6 +1,6 @@
 import { execFileSync } from 'node:child_process';
 import { chmodSync } from 'node:fs';
-import { join } from 'node:path';
+import { delimiter, join } from 'node:path';
 import { afterEach, beforeAll, describe, expect, test } from 'bun:test';
 
 import * as h from './harness';
@@ -42,12 +42,6 @@ let workspace = (manager: Manager) => {
 	return r;
 };
 
-let shim = (r: h.Repo, name: string, body: string) => {
-	let file = join(r.dir, '.home', 'bin', name);
-	h.write(r, { [`.home/bin/${name}`]: `#!/bin/sh\n${body}\n` });
-	chmodSync(file, 0o755);
-};
-
 describe('lockfiles', () => {
 	for (let [name, manager] of Object.entries(MANAGERS)) {
 		test(`${name}: the release commit holds a lockfile that a frozen install accepts`, () => {
@@ -82,7 +76,7 @@ describe('lockfiles', () => {
 
 	test('a failing lockfile command undoes the release, and a dry run runs nothing', () => {
 		let r = workspace(MANAGERS.npm);
-		shim(r, 'npm', '[ "$1" = "--version" ] && echo 10.0.0 && exit 0\necho "npm broke" >&2\nexit 1');
+		h.shim(r, 'npm', "if (process.argv[2] === '--version') console.log('10.0.0');\nelse {\n\tconsole.error('npm broke');\n\tprocess.exit(1);\n}\n");
 		let dry = h.bump(r, 'minor', '--dryrun', '--json');
 		expect(dry.code).toBe(0);
 		expect(JSON.parse(dry.stdout).files).toEqual(['package-lock.json', 'packages/a/package.json', 'packages/b/package.json']);
@@ -96,7 +90,7 @@ describe('lockfiles', () => {
 
 	test('a missing package manager is an error before any write', () => {
 		let r = workspace(MANAGERS.pnpm);
-		let env = { ...r.env, PATH: `${join(r.dir, '.home', 'bin')}:${process.env.PATH?.split(':').filter(dir => !Bun.which('pnpm', { PATH: dir })).join(':')}` };
+		let env = { ...r.env, PATH: [join(r.dir, '.home', 'bin'), ...(process.env.PATH ?? '').split(delimiter).filter(dir => !Bun.which('pnpm', { PATH: dir }))].join(delimiter) };
 		let run = Bun.spawnSync([process.execPath, join(import.meta.dirname, '..', 'bin.js'), 'minor'], { cwd: r.dir, env });
 		expect(run.stderr.toString()).toBe(`error: Missing "pnpm" binary to update "${join(r.dir, 'pnpm-lock.yaml')}"\n`);
 		expect(h.git(r, 'status', '--porcelain')).toBe('');
@@ -108,7 +102,7 @@ describe('lockfiles', () => {
 			'packages/a/package.json': h.manifest('a', '1.0.0'),
 			'yarn.lock': '# yarn lockfile v1\n',
 		}, { tag: 'v1.0.0' });
-		shim(r, 'yarn', '[ "$1" = "--version" ] && echo 1.22.22 && exit 0\nexit 1');
+		h.shim(r, 'yarn', "if (process.argv[2] === '--version') console.log('1.22.22');\nelse process.exit(1);\n");
 		h.commit(r, { 'packages/a/x.js': '1' });
 		let release = h.bump(r, 'minor');
 		expect(release.code).toBe(0);
@@ -123,7 +117,7 @@ describe('lockfiles', () => {
 		let bytes = Buffer.from([0x23, 0x21, 0xff, 0xfe, 0x00, 0x80, 0x0a]);
 		require('node:fs').writeFileSync(join(r.dir, 'bun.lockb'), bytes);
 		h.commit(r, { 'packages/a/x.js': '1' });
-		shim(r, 'bun', '[ "$1" = "--version" ] && echo 1.4.4 && exit 0\nprintf "changed" > bun.lockb');
+		h.shim(r, 'bun', "if (process.argv[2] === '--version') console.log('1.4.4');\nelse require('node:fs').writeFileSync('bun.lockb', 'changed');\n");
 		h.write(r, { '.git/hooks/pre-commit': '#!/bin/sh\nexit 1\n' });
 		chmodSync(join(r.dir, '.git/hooks/pre-commit'), 0o755);
 
@@ -134,7 +128,7 @@ describe('lockfiles', () => {
 
 	test('a lockfile that its package manager removes is an error, and comes back', () => {
 		let r = workspace(MANAGERS.npm);
-		shim(r, 'npm', '[ "$1" = "--version" ] && echo 10.0.0 && exit 0\nrm package-lock.json');
+		h.shim(r, 'npm', "if (process.argv[2] === '--version') console.log('10.0.0');\nelse require('node:fs').rmSync('package-lock.json');\n");
 		let run = h.bump(r, 'minor');
 		expect(run.stderr).toBe(`error: \`npm install --package-lock-only --ignore-scripts\` removed "${join(r.dir, 'package-lock.json')}"\n`);
 		expect(h.git(r, 'status', '--porcelain')).toBe('');

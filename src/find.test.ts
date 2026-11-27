@@ -24,7 +24,7 @@ describe('dirs', () => {
 			'packages/.hidden/x': '',
 			'packages/node_modules/x/y': '',
 		});
-		let rel = (dirs: string[]) => dirs.map(dir => dir.slice(r.dir.length + 1) || '.');
+		let rel = (dirs: string[]) => dirs.map(dir => dir.slice(r.dir.length + 1).split('\\').join('/') || '.');
 		expect(rel(find.dirs(r.dir, ['packages/*', './packages/a/', '.']))).toEqual(['.', 'packages/a', 'packages/internal-b']);
 		expect(rel(find.dirs(r.dir, ['packages/**'], ['packages/internal-*']))).toEqual(['packages/a']);
 	});
