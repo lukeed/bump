@@ -46,6 +46,7 @@ export async function load(cwd: string, inline: Inline = {}): Promise<Config> {
 	start = realpathSync(start);
 
 	let top = await git.top(start);
+	start = join(top, await git.run(start, ['rev-parse', '--show-prefix']));
 	let file: string | undefined;
 	for (let dir = start; !file; dir = dirname(dir)) {
 		let found = FILES.map(name => join(dir, name)).filter(path => existsSync(path));
