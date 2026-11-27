@@ -198,7 +198,7 @@ export async function version(input: Type | string, options: Options = {}): Prom
 
 	for (let unit of result.units) {
 		log(`~> ${unit.name ? `${unit.name} ` : ''}${unit.from} → ${unit.to} (${unit.reason})`);
-		if (unit.packages.length > 1 || unit.packages[0].name !== unit.name) log(`     ${unit.packages.map(pkg => pkg.name).join(', ')}`);
+		if (unit.packages.length > 1 || (unit.name && unit.packages[0].name !== unit.name)) log(`     ${unit.packages.map(pkg => pkg.name).join(', ')}`);
 	}
 	for (let range of result.ranges) {
 		log(`~> ${range.package ?? range.file} ${range.field}["${range.dependency}"]: ${range.from} → ${range.to}`);

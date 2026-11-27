@@ -681,7 +681,7 @@ release: fast@1.3.0, @acme/cli@0.4.2 (a1b2c3d)
 ```
 
 - One line per unit, in unit order: `~> <name> <from> → <to> (<reason>)`. In lockstep mode, the name is left out: `~> 1.2.0 → 1.3.0 (changed)`.
-- Below a unit, one member line, in member order, when the unit has more than one member, or when its only member's name differs from the unit name.
+- Below a unit, one member line, in member order, when the unit has more than one member, or when its only member's name differs from the unit name. The lockstep unit has no name, so with one member it has no member line.
 - Then one line per range edit: `~> <package> <field>["<dependency>"]: <from> → <to>`. For an edit that belongs to no package (`[workspace.dependencies]`), the file path relative to the git top level replaces the package name.
 - The last line is `release: <message> (<sha>)`, with the SHA from `git rev-parse --short <sha>`.
 - With `--dryrun`, the last line is `dry run: no files were written`. If tracked files have changes, a dry run still runs and prints a warning (§4.4) that lists them.

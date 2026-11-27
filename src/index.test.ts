@@ -347,4 +347,12 @@ describe('ownership and formats', () => {
 		expect(h.bump(r, 'patch').code).toBe(0);
 		expect(h.read(r, 'packages/a/package.json')).toBe(text.replace('1.0.0', '1.0.1'));
 	});
+
+	test('a single package prints no member line', () => {
+		let r = h.repo({ 'package.json': h.manifest('solo', '1.0.0') }, { tag: 'v1.0.0' });
+		h.commit(r, { 'x.js': '1' });
+		let sha = () => h.git(r, 'rev-parse', '--short', 'HEAD');
+		let run = h.bump(r, 'patch');
+		expect(run.stdout).toBe(`~> 1.0.0 → 1.0.1 (changed)\nrelease: v1.0.1 (${sha()})\n`);
+	});
 });
