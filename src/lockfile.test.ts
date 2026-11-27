@@ -105,8 +105,7 @@ describe('lockfiles', () => {
 		h.shim(r, 'yarn', "if (process.argv[2] === '--version') console.log('1.22.22');\nelse process.exit(1);\n");
 		h.commit(r, { 'packages/a/x.js': '1' });
 		let release = h.bump(r, 'minor');
-		expect(release.code).toBe(0);
-		expect(release.stderr).toBe(`warning: Yarn 1 cannot update "${join(r.dir, 'yarn.lock')}" without an install; the lockfile is not updated\n`);
+		expect(release).toMatchObject({ code: 0, stderr: `warning: Yarn 1 cannot update "${join(r.dir, 'yarn.lock')}" without an install; the lockfile is not updated\n` });
 	});
 
 	test('the undo restores a binary lockfile byte for byte', () => {
