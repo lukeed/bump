@@ -16,7 +16,7 @@
 
 <br />
 
-`bump` looks at what changed since your last release, bumps those packages (and the ones that depend on them), then makes **one** commit with a tag per release. That's it. It doesn't publish & it doesn't push ~ that's your call.
+`bump` looks at what changed since your last release, bumps those packages (and the ones that depend on them), then makes **one** commit with a tag per release. Publishing and pushing are up to you.
 
 And, of course, in mandatory bullet-point format:
 
