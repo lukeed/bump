@@ -117,4 +117,12 @@ describe('cli', () => {
 		expect(run({}, 'minor', '--dryrun').stdout.toString()).not.toContain(ESC);
 	});
 
+	test('a closed stdout does not stop a release', async () => {
+		let r = lockstep();
+		let proc = Bun.spawn([process.execPath, join(import.meta.dirname, '..', 'bin.js'), 'minor'], { cwd: r.dir, env: r.env, stdout: 'pipe', stderr: 'pipe' });
+		await proc.stdout.cancel();
+		expect(await proc.exited).toBe(0);
+		expect(await new Response(proc.stderr).text()).toBe('');
+		expect(h.git(r, 'tag', '--points-at', 'HEAD')).toBe('v1.1.0');
+	});
 });

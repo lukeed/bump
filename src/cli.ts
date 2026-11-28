@@ -32,6 +32,12 @@ const HELP = `
     bump 2.0.0 @acme/cli
 `;
 
+for (let stream of [process.stdout, process.stderr]) {
+	stream.on('error', err => {
+		if (Reflect.get(err, 'code') !== 'EPIPE') throw err;
+	});
+}
+
 let argv = process.argv.slice(2);
 
 if (argv.some(arg => arg === '-h' || arg === '--help')) {

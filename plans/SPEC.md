@@ -101,6 +101,7 @@ Conflicts, each an error:
 - A message starts with a capital letter, and names the item and the file it comes from, where there is one.
 - Color: on when `FORCE_COLOR` is set to anything but `0`; else off when `NO_COLOR` is set to a non-empty value; else on only when both stdout and stderr are terminals. With `--json`, the log has no color.
 - Colors: `FAIL` and its gutter red, `WARN` and its gutter yellow, `DONE` green, `BUMP` blue, `EDIT` dim; labels are bold. New versions are bold green, old versions and arrows dim, unit names bold, tags blue, the commit SHA magenta.
+- A closed stdout or stderr (`EPIPE`, as in `bump patch | head -1`) is ignored, so it never stops a release.
 - Exit `0`: a release was made, the dry run finished, or there was nothing to release.
 - Exit `1`: any error.
 - Exit `130` after SIGINT, and `143` after SIGTERM, after the undo of §14.3.
