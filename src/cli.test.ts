@@ -96,6 +96,16 @@ describe('cli', () => {
 		expect(run.stderr).toStartWith('FAIL No tag found');
 	});
 
+	test('--quiet prints only the new tags, and keeps warnings', () => {
+		let r = lockstep();
+		expect(h.bump(r, 'minor', '--quiet', '--dryrun')).toEqual({ code: 0, stdout: '', stderr: '' });
+		h.write(r, { 'packages/a/x.js': 'dirty' });
+		expect(h.bump(r, 'minor', '-q', '--dryrun')).toEqual({ code: 0, stdout: '', stderr: 'WARN A release needs a clean tree; these tracked files have changes:\n│    M packages/a/x.js\n' });
+		h.git(r, 'checkout', '--', '.');
+		expect(h.bump(r, 'minor', '-q')).toEqual({ code: 0, stdout: 'v1.1.0\n', stderr: '' });
+		expect(h.bump(r, 'minor', '-q')).toEqual({ code: 0, stdout: '', stderr: '' });
+	});
+
 	test('colors with FORCE_COLOR, and never with NO_COLOR or --json', () => {
 		let r = lockstep();
 		let run = (env: Record<string, string>, ...args: string[]) => Bun.spawnSync([process.execPath, join(import.meta.dirname, '..', 'bin.js'), ...args], { cwd: r.dir, env: { ...r.env, ...env } });

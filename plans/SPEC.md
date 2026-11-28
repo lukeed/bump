@@ -77,6 +77,7 @@ Every positional after the first is a target. See §9.3 for target rules.
 | `--adopt` | | — | Release units that have no anchor, as changed (§8.3). |
 | `--dryrun` | `-D` | — | Do every check and computation, print the result, write nothing. |
 | `--json` | | — | Print the result as JSON on stdout (§13.2). |
+| `--quiet` | `-q` | — | Print only the new tags, one per line, and warnings and failures (§13.1). |
 | `--cwd` | `-C` | `<dir>` | The directory to start from. Default `.`. |
 | `--version` | `-v` | — | Print `bump, v<version>` and exit 0. |
 | `--help` | `-h` | — | Print the help text (§4.5) and exit 0. |
@@ -120,6 +121,7 @@ Conflicts, each an error:
         --preid <id>     Preid for a new prerelease line  (default: "preid" of bump.json, else next)
         --adopt          Release units that have no tag, as changed
     -D, --dryrun         Print the release, and write nothing
+    -q, --quiet          Print only the new tags, and problems
         --json           Print the result as JSON on stdout
     -C, --cwd <dir>      Directory to start from  (default .)
     -v, --version        Print the version
@@ -689,6 +691,8 @@ DONE Committed a1b2c3d release: fast@1.3.0, @acme/cli@0.4.2
 - `done`, after a release: `DONE Committed <sha> <message>`, with the SHA from `git rev-parse --short`, then `     Tagged <tag>, <tag>`.
 - `done`, with `--dryrun`: `DONE Dry run; no files were written`. If tracked files have changes, a dry run still runs and prints a `warn` block (§4.4) first, with the changed files after the gutter.
 - `done`, when nothing is selected, the only line: `DONE Nothing to release`.
+
+With `--quiet`, the CLI prints only `warn` lines and failures, and after a release, each new tag on its own line on stdout, plain, with no label or color. A dry run or nothing to release prints nothing.
 
 ### 13.2 JSON result
 

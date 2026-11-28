@@ -19,6 +19,7 @@ const HELP = `
         --preid <id>     Preid for a new prerelease line  (default: "preid" of bump.json, else next)
         --adopt          Release units that have no tag, as changed
     -D, --dryrun         Print the release, and write nothing
+    -q, --quiet          Print only the new tags, and problems
         --json           Print the result as JSON on stdout
     -C, --cwd <dir>      Directory to start from  (default .)
     -v, --version        Print the version
@@ -63,6 +64,7 @@ let parsed = (() => {
 				adopt: { type: 'boolean' },
 				dryrun: { type: 'boolean', short: 'D' },
 				json: { type: 'boolean' },
+				quiet: { type: 'boolean', short: 'q' },
 				cwd: { type: 'string', short: 'C' },
 			},
 		});
@@ -80,6 +82,7 @@ let parsed = (() => {
 let { values, positionals } = parsed;
 let [type = '', ...targets] = positionals;
 let json = !!values.json;
+let quiet = !!values.quiet;
 
 try {
 	let result = await bump.version(type, {
@@ -91,10 +94,12 @@ try {
 		dryrun: values.dryrun,
 		color: color && !json,
 		log: (line, kind) => {
+			if (quiet && kind !== 'warn') return;
 			(json || kind === 'warn' ? process.stderr : process.stdout).write(line + '\n');
 		},
 	});
 	if (json) process.stdout.write(JSON.stringify(result, null, 2) + '\n');
+	else if (quiet && result.commit) process.stdout.write(result.units.map(unit => unit.tag).join('\n') + '\n');
 } catch (err) {
 	let signal = err instanceof bump.Interrupt ? err.signal : undefined;
 	fail(err instanceof Error ? err.message : String(err), signal === 'SIGINT' ? 130 : signal === 'SIGTERM' ? 143 : 1);
