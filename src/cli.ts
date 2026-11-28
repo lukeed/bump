@@ -4,6 +4,7 @@ import { parseArgs } from 'node:util';
 import pkg from '../package.json' with { type: 'json' };
 
 import * as bump from './index';
+import * as paint from './paint';
 
 const HELP = `
   Usage
@@ -42,8 +43,11 @@ if (argv.some(arg => arg === '-v' || arg === '--version')) {
 	process.exit(0);
 }
 
+let { FORCE_COLOR, NO_COLOR } = process.env;
+let color = FORCE_COLOR !== undefined ? FORCE_COLOR !== '0' : !NO_COLOR && !!process.stdout.isTTY && !!process.stderr.isTTY;
+
 let fail = (message: string, code = 1): never => {
-	process.stderr.write(`error: ${message}\n`);
+	process.stderr.write(paint.block(paint.palette(color), 'FAIL', message).join('\n') + '\n');
 	process.exit(code);
 };
 
@@ -85,7 +89,10 @@ try {
 		preid: values.preid,
 		adopt: values.adopt,
 		dryrun: values.dryrun,
-		log: line => (json || line.startsWith('warning: ') ? process.stderr : process.stdout).write(line + '\n'),
+		color: color && !json,
+		log: (line, kind) => {
+			(json || kind === 'warn' ? process.stderr : process.stdout).write(line + '\n');
+		},
 	});
 	if (json) process.stdout.write(JSON.stringify(result, null, 2) + '\n');
 } catch (err) {

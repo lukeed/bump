@@ -31,17 +31,18 @@ describe('lockstep', () => {
 
 		let sha = h.git(r, 'rev-parse', '--short', 'HEAD');
 		expect(run.stdout).toBe([
-			'~> 1.0.0 → 1.1.0 (changed)',
+			'BUMP 1.0.0 → 1.1.0  (changed)',
 			'     a, b, c',
-			'~> b dependencies["a"]: ^1.0.0 → ^1.1.0',
-			`release: v1.1.0 (${sha})`,
+			'EDIT b dependencies["a"] ^1.0.0 → ^1.1.0',
+			`DONE Committed ${sha} v1.1.0`,
+			'     Tagged v1.1.0',
 			'',
 		].join('\n'));
 	});
 
 	test('prints nothing to release without changes, and releases anyway with --all', () => {
 		let r = lockstep();
-		expect(h.bump(r, 'patch')).toMatchObject({ code: 0, stdout: 'nothing to release\n' });
+		expect(h.bump(r, 'patch')).toMatchObject({ code: 0, stdout: 'DONE Nothing to release\n' });
 		expect(h.bump(r, 'patch', '--all').code).toBe(0);
 		expect(h.version(r, 'packages/c')).toBe('1.0.1');
 	});
@@ -49,7 +50,7 @@ describe('lockstep', () => {
 	test('ignores files outside every package', () => {
 		let r = lockstep();
 		h.commit(r, { 'docs/readme.md': 'x' });
-		expect(h.bump(r, 'patch').stdout).toBe('nothing to release\n');
+		expect(h.bump(r, 'patch').stdout).toBe('DONE Nothing to release\n');
 	});
 
 	test('keeps the format of each manifest', () => {
@@ -71,7 +72,7 @@ describe('lockstep', () => {
 		let r = h.repo({ ...ROOT, 'packages/a/package.json': h.manifest('a', '0.0.0'), 'packages/b/package.json': h.manifest('b', '0.0.0') });
 		let run = h.bump(r, 'major');
 		expect(run.code).toBe(0);
-		expect(run.stdout).toStartWith('~> 0.0.0 → 1.0.0 (first)\n');
+		expect(run.stdout).toStartWith('BUMP 0.0.0 → 1.0.0  (first)\n');
 		expect(h.version(r, 'packages/b')).toBe('1.0.0');
 	});
 
@@ -81,12 +82,12 @@ describe('lockstep', () => {
 		expect(h.bump(r, '2.0.0-rc.0').code).toBe(0);
 		expect(h.version(r, 'packages/a')).toBe('2.0.0-rc.0');
 		h.commit(r, { 'packages/a/x.js': '2' });
-		expect(h.bump(r, '1.5.0').stderr).toBe('error: The next version of "(lockstep)" must be greater than 2.0.0-rc.0, but is 1.5.0\n');
+		expect(h.bump(r, '1.5.0').stderr).toBe('FAIL The next version of "(lockstep)" must be greater than 2.0.0-rc.0, but is 1.5.0\n');
 	});
 
 	test('refuses members with different versions', () => {
 		let r = h.repo({ ...ROOT, 'packages/a/package.json': h.manifest('a', '1.0.0'), 'packages/b/package.json': h.manifest('b', '1.1.0') }, { tag: 'v1.0.0' });
-		expect(h.bump(r, 'patch').stderr).toBe('error: The members of the release must share one version:\n  a  1.0.0\n  b  1.1.0\n');
+		expect(h.bump(r, 'patch').stderr).toBe('FAIL The members of the release must share one version:\n│    a  1.0.0\n│    b  1.1.0\n');
 	});
 
 	test('does not release packages without a version, but updates their ranges', () => {
@@ -104,27 +105,26 @@ describe('anchors', () => {
 		let run = h.bump(r, 'minor');
 		expect(run.code).toBe(1);
 		expect(run.stderr).toBe([
-			'error: no tag found for 1 unit whose manifests are past 0.0.0',
-			'',
-			'  (lockstep)   manifest 1.4.0   expected tag v1.4.0',
-			'',
-			'To continue from the last release, tag the commit that released it:',
-			'  git tag -a v1.4.0 -m v1.4.0 <commit>',
-			'',
-			'To use the manifest versions as the base, run again with --adopt:',
-			'  bump minor --adopt   →   1.5.0',
+			'FAIL No tag found for 1 unit whose manifest is past 0.0.0',
+			'│    (lockstep)   manifest 1.4.0   expected tag v1.4.0',
+			'│',
+			'│    To continue from the last release, tag the commit that released it:',
+			'│      git tag -a v1.4.0 -m v1.4.0 <commit>',
+			'│',
+			'│    To use the manifest version as the base, run again with --adopt:',
+			'│      bump minor --adopt   →   1.5.0',
 			'',
 		].join('\n'));
 
 		let adopted = h.bump(r, 'minor', '--adopt');
 		expect(adopted.code).toBe(0);
-		expect(adopted.stdout).toStartWith('~> 1.4.0 → 1.5.0 (adopted)\n');
+		expect(adopted.stdout).toStartWith('BUMP 1.4.0 → 1.5.0  (adopted)\n');
 	});
 
 	test('refuses a manifest behind a reachable release', () => {
 		let r = lockstep();
 		h.tag(r, 'v1.1.0');
-		expect(h.bump(r, 'patch').stderr).toBe('error: "v1.1.0" is released, but the manifest says 1.0.0\n');
+		expect(h.bump(r, 'patch').stderr).toBe('FAIL "v1.1.0" is released, but the manifest says 1.0.0\n');
 	});
 
 	test('refuses an anchor that is not in the history of HEAD', () => {
@@ -134,7 +134,7 @@ describe('anchors', () => {
 		h.commit(r, { 'x.txt': '1' });
 		h.tag(r, 'v1.0.0');
 		h.git(r, 'switch', '--quiet', 'main');
-		expect(h.bump(r, 'patch').stderr).toBe('error: The "v1.0.0" release commit is not in the history of HEAD; merge it first\n');
+		expect(h.bump(r, 'patch').stderr).toBe('FAIL The "v1.0.0" release commit is not in the history of HEAD; merge it first\n');
 	});
 
 	test('ignores higher tags on other branches', () => {
@@ -153,13 +153,13 @@ describe('anchors', () => {
 		h.commit(r, { 'packages/a/x.js': '1' });
 		let clone = { ...r, dir: `${r.dir}/.home/clone` };
 		h.git(r, 'clone', '--quiet', '--depth', '1', `file://${r.dir}`, clone.dir);
-		expect(h.bump(clone, 'patch').stderr).toStartWith('error: A full clone is needed');
+		expect(h.bump(clone, 'patch').stderr).toStartWith('FAIL A full clone is needed');
 	});
 
 	test('refuses a repository without commits', () => {
 		let r = h.repo({});
 		h.git(r, 'update-ref', '-d', 'HEAD');
-		expect(h.bump(r, 'patch').stderr).toBe('error: The repository has no commits\n');
+		expect(h.bump(r, 'patch').stderr).toBe('FAIL The repository has no commits\n');
 	});
 });
 
@@ -176,7 +176,7 @@ describe('change detection', () => {
 		expect(h.bump(r, 'minor').code).toBe(0);
 		expect(h.version(r, 'packages/tool')).toBe('1.0.0');
 		expect(JSON.parse(h.read(r, 'packages/tool/package.json')).devDependencies).toEqual({ a: '^1.1.0' });
-		expect(h.bump(r, 'minor').stdout).toBe('nothing to release\n');
+		expect(h.bump(r, 'minor').stdout).toBe('DONE Nothing to release\n');
 	});
 
 	test('counts a change in a nested package for the nested package only', () => {
@@ -222,7 +222,7 @@ describe('git', () => {
 		h.sign(r, true);
 		let run = h.bump(r, 'minor');
 		expect(run.code).toBe(1);
-		expect(run.stderr).toContain('git tag');
+		expect(run.stderr).toBe('FAIL Could not create tag "v1.1.0": gpg failed to sign the data\n│    The release was undone: no files, commits, or tags changed.\n');
 		expect(h.git(r, 'rev-parse', 'HEAD')).toBe(head);
 		expect(h.git(r, 'status', '--porcelain')).toBe('');
 		expect(h.git(r, 'tag', '--list')).toBe('v1.0.0');
@@ -268,12 +268,12 @@ describe('git', () => {
 		let r = lockstep();
 		h.commit(r, { 'packages/a/x.js': '1' });
 		h.write(r, { 'packages/a/x.js': '2' });
-		expect(h.bump(r, 'minor').stderr).toBe('error: Commit or stash the changes to tracked files first:\n M packages/a/x.js\n');
+		expect(h.bump(r, 'minor').stderr).toBe('FAIL Commit or stash the changes to tracked files first:\n│    M packages/a/x.js\n');
 
 		let dry = h.bump(r, 'minor', '--dryrun');
 		expect(dry.code).toBe(0);
-		expect(dry.stderr).toBe('warning: a release needs a clean tree; these tracked files have changes:\n M packages/a/x.js\n');
-		expect(dry.stdout).toEndWith('dry run: no files were written\n');
+		expect(dry.stderr).toBe('WARN A release needs a clean tree; these tracked files have changes:\n│    M packages/a/x.js\n');
+		expect(dry.stdout).toEndWith('DONE Dry run; no files were written\n');
 		expect(h.version(r, 'packages/a')).toBe('1.0.0');
 		expect(h.git(r, 'tag', '--list')).toBe('v1.0.0');
 	});
@@ -282,7 +282,7 @@ describe('git', () => {
 		let r = lockstep();
 		h.commit(r, { 'packages/a/x.js': '1' });
 		h.write(r, { '.git/MERGE_HEAD': h.git(r, 'rev-parse', 'HEAD') + '\n' });
-		expect(h.bump(r, 'minor').stderr).toBe('error: A merge is in progress; finish it first\n');
+		expect(h.bump(r, 'minor').stderr).toBe('FAIL A merge is in progress; finish it first\n');
 	});
 
 	test('refuses an existing tag', () => {
@@ -294,14 +294,14 @@ describe('git', () => {
 		h.commit(r, { 'y.txt': '1' });
 		h.tag(r, 'v1.1.0');
 		h.git(r, 'switch', '--quiet', 'main');
-		expect(h.bump(r, 'minor').stderr).toBe('error: These tags already exist: "v1.1.0"\n');
+		expect(h.bump(r, 'minor').stderr).toBe('FAIL These tags already exist: "v1.1.0"\n');
 	});
 
 	test('refuses an untracked manifest', () => {
 		let r = lockstep();
 		h.commit(r, { 'packages/a/x.js': '1' });
 		h.write(r, { 'packages/d/package.json': h.manifest('d', '1.0.0') });
-		expect(h.bump(r, 'minor').stderr).toBe('error: These files are not tracked by git: "packages/d/package.json"\n');
+		expect(h.bump(r, 'minor').stderr).toBe('FAIL These files are not tracked by git: "packages/d/package.json"\n');
 	});
 
 	test('works on a detached HEAD', () => {
@@ -313,7 +313,7 @@ describe('git', () => {
 
 	test('refuses a tag name that git does not allow', () => {
 		let r = h.repo({ 'bump.json': '{ "packages": "packages/*", "tag": "v {version}" }', 'packages/a/package.json': h.manifest('a', '0.0.0') });
-		expect(h.bump(r, 'patch').stderr).toBe('error: Invalid tag name: "v 0.0.1"\n');
+		expect(h.bump(r, 'patch').stderr).toBe('FAIL Invalid tag name: "v 0.0.1"\n');
 	});
 });
 
@@ -353,6 +353,6 @@ describe('ownership and formats', () => {
 		h.commit(r, { 'x.js': '1' });
 		let sha = () => h.git(r, 'rev-parse', '--short', 'HEAD');
 		let run = h.bump(r, 'patch');
-		expect(run.stdout).toBe(`~> 1.0.0 → 1.0.1 (changed)\nrelease: v1.0.1 (${sha()})\n`);
+		expect(run.stdout).toBe(`BUMP 1.0.0 → 1.0.1  (changed)\nDONE Committed ${sha()} v1.0.1\n     Tagged v1.0.1\n`);
 	});
 });

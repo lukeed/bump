@@ -8,12 +8,13 @@ import * as edit from './edit';
 import * as find from './find';
 import * as git from './git';
 import * as lockfile from './lockfile';
+import * as paint from './paint';
 import * as plan from './plan';
 import * as release from './release';
 import * as semver from './semver';
 import * as units from './units';
 
-import type { Options, Result, Type } from '..';
+import type { Kind, Options, Result, Type } from '..';
 import type { Change } from './edit';
 import type { Package } from './find';
 import type { Pick } from './plan';
@@ -29,8 +30,12 @@ const TYPES: Type[] = ['major', 'minor', 'patch', 'premajor', 'preminor', 'prepa
  * @example let result = await version('minor', { cwd: 'repo' });
  */
 export async function version(input: Type | string, options: Options = {}): Promise<Result> {
-	let log = options.log ?? (() => {});
-	let warn = (message: string) => log(`warning: ${message}`);
+	let p = paint.palette(!!options.color);
+	let log = (kind: Kind, line: string) => options.log?.(line, kind);
+	let warn = (message: string) => {
+		for (let line of paint.block(p, 'WARN', message)) log('warn', line);
+	};
+	let done = (text: string) => log('done', `${p.green(p.bold('DONE'))} ${text}`);
 
 	let raw = input.trim();
 	let type = TYPES.find(name => name === raw.toLowerCase());
@@ -105,9 +110,8 @@ export async function version(input: Type | string, options: Options = {}): Prom
 	if (missing.length && !options.adopt) {
 		let width = Math.max(...missing.map(unit => units.label(unit).length));
 		let lines = [
-			`no tag found for ${missing.length} ${missing.length === 1 ? 'unit' : 'units'} whose manifests are past 0.0.0`,
-			'',
-			...missing.map(unit => `  ${units.label(unit).padEnd(width)}   manifest ${unit.version}   expected tag ${units.tag(conf, unit, unit.version)}`),
+			missing.length === 1 ? 'No tag found for 1 unit whose manifest is past 0.0.0' : `No tag found for ${missing.length} units whose manifests are past 0.0.0`,
+			...missing.map(unit => `${units.label(unit).padEnd(width)}   manifest ${unit.version}   expected tag ${units.tag(conf, unit, unit.version)}`),
 			'',
 			'To continue from the last release, tag the commit that released it:',
 			...missing.map(unit => {
@@ -119,7 +123,7 @@ export async function version(input: Type | string, options: Options = {}): Prom
 			let preview = plan.plan({ ...request, adopt: true });
 			let args = [raw, ...targets, ...options.all ? ['--all'] : [], ...options.preid ? ['--preid', options.preid] : [], ...options.dryrun ? ['--dryrun'] : [], '--adopt'];
 			let summary = preview.map(pick => pick.unit.name ? `${pick.unit.name} ${pick.to}` : pick.to).join(', ');
-			lines.push('', 'To use the manifest versions as the base, run again with --adopt:', `  bump ${args.join(' ')}   →   ${summary}`);
+			lines.push('', `To use the manifest ${missing.length === 1 ? 'version' : 'versions'} as the base, run again with --adopt:`, `  bump ${args.join(' ')}   →   ${summary}`);
 		} catch {}
 		throw new Error(lines.join('\n'));
 	}
@@ -128,7 +132,7 @@ export async function version(input: Type | string, options: Options = {}): Prom
 	let result: Result = { dryrun: !!options.dryrun, type: exact ? 'exact' : type ?? 'patch', commit: null, message: null, units: [], ranges: [], files: [] };
 
 	if (!picks.length) {
-		log('nothing to release');
+		done('Nothing to release');
 		return result;
 	}
 
@@ -162,10 +166,10 @@ export async function version(input: Type | string, options: Options = {}): Prom
 	let npm = picks.some(pick => pick.unit.members.some(pkg => pkg.ecosystem === 'npm')) || ranges.some(range => range.file.endsWith('package.json'));
 	let locked = npm ? await lockfile.find(root, top, warn) : [];
 
-	let dirty = await git.dirty(top);
+	let dirty = (await git.dirty(top)).map(line => line.trimStart());
 	if (dirty.length) {
 		if (!options.dryrun) throw new Error(`Commit or stash the changes to tracked files first:\n${dirty.join('\n')}`);
-		warn(`a release needs a clean tree; these tracked files have changes:\n${dirty.join('\n')}`);
+		warn(`A release needs a clean tree; these tracked files have changes:\n${dirty.join('\n')}`);
 	}
 	let busy = await git.busy(top);
 	if (busy) throw new Error(`A ${busy} is in progress; finish it first`);
@@ -196,24 +200,26 @@ export async function version(input: Type | string, options: Options = {}): Prom
 		to: range.to,
 	}));
 
+	let change = (from: string, to: string) => `${p.dim(from)} ${p.dim('→')} ${p.green(p.bold(to))}`;
 	for (let unit of result.units) {
-		log(`~> ${unit.name ? `${unit.name} ` : ''}${unit.from} → ${unit.to} (${unit.reason})`);
-		if (unit.packages.length > 1 || (unit.name && unit.packages[0].name !== unit.name)) log(`     ${unit.packages.map(pkg => pkg.name).join(', ')}`);
+		log('plan', `${p.blue(p.bold('BUMP'))} ${unit.name ? `${p.bold(unit.name)} ` : ''}${change(unit.from, unit.to)}  ${p.dim(`(${unit.reason})`)}`);
+		if (unit.packages.length > 1 || (unit.name && unit.packages[0].name !== unit.name)) log('plan', `     ${p.dim(unit.packages.map(pkg => pkg.name).join(', '))}`);
 	}
 	for (let range of result.ranges) {
-		log(`~> ${range.package ?? range.file} ${range.field}["${range.dependency}"]: ${range.from} → ${range.to}`);
+		log('plan', `${p.dim(p.bold('EDIT'))} ${range.package ?? range.file} ${range.field}["${range.dependency}"] ${change(range.from, range.to)}`);
 	}
 
 	if (options.dryrun) {
 		result.files = [...new Set([...edits.keys(), ...locked.map(lock => lock.file)].map(rel))].sort();
-		log('dry run: no files were written');
+		done('Dry run; no files were written');
 		return result;
 	}
 
 	let output = await release.release({ top, root, head, edits, locks: locked, message, tags });
 	result.commit = output.commit;
 	result.files = output.files;
-	log(`release: ${message} (${await git.run(top, ['rev-parse', '--short', output.commit])})`);
+	done(`Committed ${p.magenta(await git.run(top, ['rev-parse', '--short', output.commit]))} ${message}`);
+	log('done', `     Tagged ${tags.map(name => p.blue(name)).join(', ')}`);
 	return result;
 }
 

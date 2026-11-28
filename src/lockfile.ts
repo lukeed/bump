@@ -59,6 +59,6 @@ export async function find(root: string, top: string, warn: (message: string) =>
  */
 export async function update(root: string, lock: Lockfile): Promise<void> {
 	let { code, stdout, stderr } = await exec(root, lock.binary, lock.args);
-	if (code !== 0) throw new Error(`\`${lock.binary} ${lock.args.join(' ')}\` failed: ${stderr || stdout || `exit code ${code}`}`);
+	if (code !== 0) throw new Error(stderr || stdout || `\`${lock.binary} ${lock.args.join(' ')}\` exited with code ${code}`);
 }
 

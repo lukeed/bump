@@ -11,7 +11,7 @@ export class Interrupt extends Error {
 	signal: 'SIGINT' | 'SIGTERM';
 
 	constructor(signal: 'SIGINT' | 'SIGTERM') {
-		super(`Stopped by ${signal}; the release was undone`);
+		super(`Stopped by ${signal}`);
 		this.signal = signal;
 	}
 }
@@ -55,36 +55,37 @@ export async function release(input: Input): Promise<Output> {
 	};
 
 	let created: string[] = [];
+	let rel = (file: string) => relative(top, file).split('\\').join('/');
 
 	try {
-		for (let [file, text] of input.edits) writeFileSync(file, text);
+		for (let [file, text] of input.edits) await step(`Could not write "${rel(file)}"`, () => writeFileSync(file, text));
 		check();
 
 		let ran = new Set<string>();
 		for (let lock of input.locks) {
 			if (ran.has(lock.binary)) continue;
 			ran.add(lock.binary);
-			await lockfile.update(input.root, lock);
+			await step(`Could not update "${rel(lock.file)}"`, () => lockfile.update(input.root, lock));
 			check();
 		}
 
 		for (let lock of input.locks) {
-			if (!existsSync(lock.file)) throw new Error(`\`${lock.binary} ${lock.args.join(' ')}\` removed "${lock.file}"`);
+			if (!existsSync(lock.file)) throw new Error(`Could not update "${rel(lock.file)}": \`${lock.binary} ${lock.args.join(' ')}\` removed it`);
 		}
 
 		let files = [...originals]
 			.filter(([file, bytes]) => input.edits.has(file) || !readFileSync(file).equals(bytes))
-			.map(([file]) => relative(top, file).split('\\').join('/'))
+			.map(([file]) => rel(file))
 			.sort();
 
-		await git.run(top, ['add', '--', ...files]);
+		await step('Could not stage the files', () => git.run(top, ['add', '--', ...files]));
 		check();
-		await git.run(top, ['commit', '--message', input.message, '--', ...files]);
+		await step('Could not commit', () => git.run(top, ['commit', '--message', input.message, '--', ...files]));
 		let commit = (await git.run(top, ['rev-list', '--first-parent', '--reverse', `${input.head}..HEAD`])).split('\n')[0];
 		check();
 
 		for (let tag of input.tags) {
-			await git.run(top, ['tag', '--annotate', '--message', tag, tag, commit]);
+			await step(`Could not create tag "${tag}"`, () => git.run(top, ['tag', '--annotate', '--message', tag, tag, commit]));
 			created.push(tag);
 			check();
 		}
@@ -93,7 +94,12 @@ export async function release(input: Input): Promise<Output> {
 	} catch (err) {
 		let failure = signal && !(err instanceof Interrupt) ? new Interrupt(signal) : err;
 		await undo(input, originals, created, failure);
-		throw failure;
+		let note = 'The release was undone: no files, commits, or tags changed.';
+		if (failure instanceof Interrupt) {
+			failure.message += `\n${note}`;
+			throw failure;
+		}
+		throw new Error(`${failure instanceof Error ? failure.message : String(failure)}\n${note}`, { cause: failure });
 	} finally {
 		process.off('SIGINT', onInt);
 		process.off('SIGTERM', onTerm);
@@ -140,4 +146,16 @@ async function undo(input: Input, originals: Map<string, Buffer>, created: strin
 		...changed.length ? [`  git checkout ${head} -- ${changed.join(' ')}`] : [],
 	];
 	throw new Error(lines.join('\n'));
+}
+
+async function step<T>(what: string, run: () => T | Promise<T>): Promise<T> {
+	try {
+		return await run();
+	} catch (err) {
+		let text = err instanceof git.Failure ? err.stderr : err instanceof Error ? err.message : String(err);
+		let lines = text.split('\n').map(line => line.trim()).filter(Boolean);
+		let found = lines.find(line => /^(error|fatal): /.test(line));
+		let reason = (found ?? lines[0] ?? 'unknown error').replace(/^(error|fatal): /, '').replace(/:$/, '');
+		throw new Error(`${what}: ${reason}`, { cause: err });
+	}
 }

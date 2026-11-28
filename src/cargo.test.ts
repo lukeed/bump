@@ -41,10 +41,10 @@ describe('napi layout', () => {
 		let run = h.bump(r, 'minor');
 		expect(run.code).toBe(0);
 		expect(run.stdout.split('\n').slice(0, 4)).toEqual([
-			'~> fast 1.2.0 → 1.3.0 (changed)',
+			'BUMP fast 1.2.0 → 1.3.0  (changed)',
 			'     @acme/fast-darwin-arm64, @acme/fast-linux-x64-gnu, @acme/fast, acme-fast',
-			'~> @acme/cli 0.4.1 → 0.4.2 (dependent)',
-			'~> @acme/fast optionalDependencies["@acme/fast-darwin-arm64"]: 1.2.0 → 1.3.0',
+			'BUMP @acme/cli 0.4.1 → 0.4.2  (dependent)',
+			'EDIT @acme/fast optionalDependencies["@acme/fast-darwin-arm64"] 1.2.0 → 1.3.0',
 		]);
 		expect(h.read(r, 'Cargo.toml')).toContain('version = "1.3.0"');
 		expect(h.read(r, 'Cargo.lock')).toBe(lock(['acme-fast', '1.3.0']));
@@ -135,7 +135,7 @@ describe('cargo workspaces', () => {
 		h.commit(r, { 'crates/b/src/lib.rs': '' });
 		let run = h.bump(r, 'patch');
 		expect(run.code).toBe(0);
-		expect(run.stdout).toStartWith('~> kit 1.0.0 → 1.0.1 (changed)\n     a, b\n');
+		expect(run.stdout).toStartWith('BUMP kit 1.0.0 → 1.0.1  (changed)\n     a, b\n');
 	});
 
 	test('in independent mode, shared versions take the name of the root crate', () => {
@@ -148,7 +148,7 @@ describe('cargo workspaces', () => {
 		h.commit(r, { 'crates/a/src/lib.rs': '' });
 		let run = h.bump(r, 'patch');
 		expect(run.code).toBe(0);
-		expect(run.stdout).toStartWith('~> tool 1.0.0 → 1.0.1 (changed)\n     a, tool\n');
+		expect(run.stdout).toStartWith('BUMP tool 1.0.0 → 1.0.1  (changed)\n     a, tool\n');
 	});
 
 	test('in independent mode, shared versions without a name are an error, unless only one crate shares it', () => {
@@ -157,7 +157,7 @@ describe('cargo workspaces', () => {
 			'crates/a/Cargo.toml': h.crate('a', '{ workspace = true }'),
 			'crates/b/Cargo.toml': h.crate('b', '{ workspace = true }'),
 		});
-		expect(h.bump(r, 'patch').stderr).toBe('error: Crates "a", "b" share [workspace.package] version; name them in "groups", e.g. "groups": { "<name>": ["a"] }\n');
+		expect(h.bump(r, 'patch').stderr).toBe('FAIL Crates "a", "b" share [workspace.package] version; name them in "groups", e.g. "groups": { "<name>": ["a"] }\n');
 
 		h.commit(r, { 'crates/b/Cargo.toml': h.crate('b', '3.0.0') });
 		h.tag(r, 'a@1.0.0');
@@ -178,7 +178,7 @@ describe('cargo workspaces', () => {
 		h.commit(r, { 'helper/src/lib.rs': '' });
 		let run = h.bump(r, 'patch');
 		expect(run.code).toBe(0);
-		expect(run.stdout).toStartWith('~> 1.0.0 → 1.0.1 (changed)\n     helper, app\n');
+		expect(run.stdout).toStartWith('BUMP 1.0.0 → 1.0.1  (changed)\n     helper, app\n');
 		expect(h.read(r, 'vendor/old/Cargo.toml')).toContain('version = "9.0.0"');
 	});
 

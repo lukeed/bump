@@ -96,8 +96,10 @@ Conflicts, each an error:
 
 ### 4.4 Errors, warnings, exit codes
 
-- An error prints `error: <message>` to stderr. A message names the item and the file it comes from, where there is one.
-- A warning prints `warning: <message>` to stderr.
+- An error prints a `FAIL` block to stderr, and a warning prints a `WARN` block to stderr. A block is the label, a space, and the first line of the message; each other line of the message follows a gutter, `│` and 4 spaces, so it lines up with the first line. An empty line is the gutter alone.
+- A message starts with a capital letter, and names the item and the file it comes from, where there is one.
+- Color: on when `FORCE_COLOR` is set to anything but `0`; else off when `NO_COLOR` is set to a non-empty value; else on only when both stdout and stderr are terminals. With `--json`, the log has no color.
+- Colors: `FAIL` and its gutter red, `WARN` and its gutter yellow, `DONE` green, `BUMP` blue, `EDIT` dim; labels are bold. New versions are bold green, old versions and arrows dim, unit names bold, tags blue, the commit SHA magenta.
 - Exit `0`: a release was made, the dry run finished, or there was nothing to release.
 - Exit `1`: any error.
 - Exit `130` after SIGINT, and `143` after SIGTERM, after the undo of §14.3.
@@ -669,23 +671,24 @@ When at least one npm package is released or gets a range edit, check the root (
 
 ### 13.1 Human log
 
-The library sends each log line to the `log` function of §13.3. The CLI prints the lines to stdout, or to stderr with `--json`. Example:
+The library sends each log line, with its kind (`plan`, `done`, or `warn`), to the `log` function of §13.3. The CLI prints `plan` and `done` lines to stdout and `warn` lines to stderr; with `--json`, every line goes to stderr. Each line starts with a 4-letter label in one aligned column. Example:
 
 ```
-~> fast 1.2.0 → 1.3.0 (changed)
+BUMP fast 1.2.0 → 1.3.0  (changed)
      @acme/fast-darwin-arm64, @acme/fast-linux-x64-gnu, @acme/fast, acme-fast
-~> @acme/cli 0.4.1 → 0.4.2 (dependent)
-~> @acme/cli dependencies["@acme/fast"]: ^1.2.0 → ^1.3.0
-~> Cargo.toml workspace.dependencies["acme-core"]: 1.2 → 1.3
-release: fast@1.3.0, @acme/cli@0.4.2 (a1b2c3d)
+BUMP @acme/cli 0.4.1 → 0.4.2  (dependent)
+EDIT @acme/cli dependencies["@acme/fast"] ^1.2.0 → ^1.3.0
+EDIT Cargo.toml workspace.dependencies["acme-core"] 1.2 → 1.3
+DONE Committed a1b2c3d release: fast@1.3.0, @acme/cli@0.4.2
+     Tagged fast@1.3.0, @acme/cli@0.4.2
 ```
 
-- One line per unit, in unit order: `~> <name> <from> → <to> (<reason>)`. In lockstep mode, the name is left out: `~> 1.2.0 → 1.3.0 (changed)`.
-- Below a unit, one member line, in member order, when the unit has more than one member, or when its only member's name differs from the unit name. The lockstep unit has no name, so with one member it has no member line.
-- Then one line per range edit: `~> <package> <field>["<dependency>"]: <from> → <to>`. For an edit that belongs to no package (`[workspace.dependencies]`), the file path relative to the git top level replaces the package name.
-- The last line is `release: <message> (<sha>)`, with the SHA from `git rev-parse --short <sha>`.
-- With `--dryrun`, the last line is `dry run: no files were written`. If tracked files have changes, a dry run still runs and prints a warning (§4.4) that lists them.
-- When nothing is selected, the only line is `nothing to release`.
+- `plan`, one line per unit, in unit order: `BUMP <name> <from> → <to>  (<reason>)`. In lockstep mode, the name is left out: `BUMP 1.2.0 → 1.3.0  (changed)`.
+- `plan`, below a unit, one member line indented 5 spaces, in member order, when the unit has more than one member, or when its only member's name differs from the unit name. The lockstep unit has no name, so with one member it has no member line.
+- `plan`, one line per range edit: `EDIT <package> <field>["<dependency>"] <from> → <to>`. For an edit that belongs to no package (`[workspace.dependencies]`), the file path relative to the git top level replaces the package name.
+- `done`, after a release: `DONE Committed <sha> <message>`, with the SHA from `git rev-parse --short`, then `     Tagged <tag>, <tag>`.
+- `done`, with `--dryrun`: `DONE Dry run; no files were written`. If tracked files have changes, a dry run still runs and prints a `warn` block (§4.4) first, with the changed files after the gutter.
+- `done`, when nothing is selected, the only line: `DONE Nothing to release`.
 
 ### 13.2 JSON result
 
@@ -771,7 +774,8 @@ export type Options = Omit<Config, '$schema' | 'preid'> & {
   preid?: string;
   adopt?: boolean;
   dryrun?: boolean;
-  log?: (line: string) => void;
+  color?: boolean;
+  log?: (line: string, kind: 'plan' | 'done' | 'warn') => void;
 };
 
 export function version(input: Type | string, options?: Options): Promise<Result>;
@@ -786,7 +790,7 @@ The package exports `.` (`index.js` with `index.d.ts`), `./schema.json`, and `./
 - `Config` is the shape of the config file (§5.2).
 - `Options` takes every `Config` key except `$schema` and `preid`. An inline key replaces the same key of the config file, and its errors end with `in the options`. `Options.preid` is the `--preid` override of §10.3, not the config default.
 - `Result` is the object of §13.2.
-- Without `log`, the library prints nothing. Warnings go to `log` too, with their `warning: ` prefix.
+- Without `log`, the library prints nothing. Warnings go to `log` too, as `warn` lines. With `color`, the lines carry the ANSI colors of §4.4.
 - Errors are thrown as `Error` objects with the messages of this document. The CLI prints them as §4.4 says.
 
 ### 13.4 JSON schema
@@ -826,7 +830,9 @@ If any step of §14.2 fails, or the process gets SIGINT or SIGTERM during §14.2
 1. Delete each tag that this run created (`git tag -d`).
 2. If the commit was made: `git reset --soft <original HEAD>`. Use the recorded SHA, not `HEAD~1`, because a `post-commit` hook can add commits.
 3. Write back the original text of each file, from memory. Then unstage them: `git reset --quiet <original HEAD> -- <files>`.
-4. Throw the original error.
+4. Throw the original error, with the line `The release was undone: no files, commits, or tags changed.` added below it.
+
+Each step names what failed, then the cause from the tool's output: the first `error:` or `fatal:` line of git's stderr, without that prefix, else its first line. For example `Could not create tag "v1.3.1": gpg failed to sign the data`, `Could not commit: <hook output>`, `Could not update "package-lock.json": <npm output>`. A signal gives `Stopped by SIGINT` or `Stopped by SIGTERM`.
 
 If the undo itself fails, print both errors and the remaining state: the tags that still exist, the commit SHA if it still exists, the files that differ, and the commands to clean up by hand. Never hide the first error.
 

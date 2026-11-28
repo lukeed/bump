@@ -83,7 +83,7 @@ describe('lockfiles', () => {
 
 		let head = h.git(r, 'rev-parse', 'HEAD');
 		let failed = h.bump(r, 'minor');
-		expect(failed.stderr).toBe('error: `npm install --package-lock-only --ignore-scripts` failed: npm broke\n');
+		expect(failed.stderr).toBe('FAIL Could not update "package-lock.json": npm broke\n│    The release was undone: no files, commits, or tags changed.\n');
 		expect(h.git(r, 'rev-parse', 'HEAD')).toBe(head);
 		expect(h.git(r, 'status', '--porcelain')).toBe('');
 	}, 60_000);
@@ -92,7 +92,7 @@ describe('lockfiles', () => {
 		let r = workspace(MANAGERS.pnpm);
 		let env = { ...r.env, PATH: [join(r.dir, '.home', 'bin'), ...(process.env.PATH ?? '').split(delimiter).filter(dir => !Bun.which('pnpm', { PATH: dir }))].join(delimiter) };
 		let run = Bun.spawnSync([process.execPath, join(import.meta.dirname, '..', 'bin.js'), 'minor'], { cwd: r.dir, env });
-		expect(run.stderr.toString()).toBe(`error: Missing "pnpm" binary to update "${join(r.dir, 'pnpm-lock.yaml')}"\n`);
+		expect(run.stderr.toString()).toBe(`FAIL Missing "pnpm" binary to update "${join(r.dir, 'pnpm-lock.yaml')}"\n`);
 		expect(h.git(r, 'status', '--porcelain')).toBe('');
 	}, 60_000);
 
@@ -105,7 +105,7 @@ describe('lockfiles', () => {
 		h.shim(r, 'yarn', "if (process.argv[2] === '--version') console.log('1.22.22');\nelse process.exit(1);\n");
 		h.commit(r, { 'packages/a/x.js': '1' });
 		let release = h.bump(r, 'minor');
-		expect(release).toMatchObject({ code: 0, stderr: `warning: Yarn 1 cannot update "${join(r.dir, 'yarn.lock')}" without an install; the lockfile is not updated\n` });
+		expect(release).toMatchObject({ code: 0, stderr: `WARN Yarn 1 cannot update "${join(r.dir, 'yarn.lock')}" without an install; the lockfile is not updated\n` });
 	});
 
 	test('the undo restores a binary lockfile byte for byte', () => {
@@ -129,7 +129,7 @@ describe('lockfiles', () => {
 		let r = workspace(MANAGERS.npm);
 		h.shim(r, 'npm', "if (process.argv[2] === '--version') console.log('10.0.0');\nelse require('node:fs').rmSync('package-lock.json');\n");
 		let run = h.bump(r, 'minor');
-		expect(run.stderr).toBe(`error: \`npm install --package-lock-only --ignore-scripts\` removed "${join(r.dir, 'package-lock.json')}"\n`);
+		expect(run.stderr).toBe('FAIL Could not update "package-lock.json": `npm install --package-lock-only --ignore-scripts` removed it\n│    The release was undone: no files, commits, or tags changed.\n');
 		expect(h.git(r, 'status', '--porcelain')).toBe('');
 	}, 60_000);
 });

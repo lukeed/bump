@@ -1,6 +1,16 @@
 import { existsSync, realpathSync } from 'node:fs';
 import { isAbsolute, join } from 'node:path';
 
+/** A git command that exited with an error, with its stderr. */
+export class Failure extends Error {
+	stderr: string;
+
+	constructor(args: string[], stderr: string, code: number) {
+		super(`\`git ${args.join(' ')}\` failed: ${stderr.trim() || `exit code ${code}`}`);
+		this.stderr = stderr;
+	}
+}
+
 /**
  * Run `git` with `args` in `cwd`, and return its stdout, untouched.
  * @example await raw('repo', ['diff', '-z', '--name-only', 'v1.0.0', 'HEAD'])
@@ -22,7 +32,7 @@ export async function raw(cwd: string, args: string[], input?: string): Promise<
 		new Response(proc.stderr).text(),
 		proc.exited,
 	]);
-	if (code !== 0) throw new Error(`\`git ${args.join(' ')}\` failed: ${stderr.trim() || `exit code ${code}`}`);
+	if (code !== 0) throw new Failure(args, stderr, code);
 	return stdout;
 }
 

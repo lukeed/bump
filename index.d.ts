@@ -2,6 +2,9 @@ export type Type = 'major' | 'minor' | 'patch' | 'premajor' | 'preminor' | 'prep
 
 export type Ecosystem = 'npm' | 'cargo';
 
+/** What a log line is about: the release plan, its result, or a warning. */
+export type Kind = 'plan' | 'done' | 'warn';
+
 export type Reason = 'target' | 'first' | 'adopted' | 'changed' | 'all' | 'dependent';
 
 export type Config = {
@@ -56,8 +59,10 @@ export type Options = Omit<Config, '$schema' | 'preid'> & {
 	adopt?: boolean;
 	/** Do every check, and write nothing. @default false */
 	dryrun?: boolean;
-	/** Receives each log line. Without it, nothing is printed. */
-	log?: (line: string) => void;
+	/** Receives each log line and its kind. Without it, nothing is printed. */
+	log?: (line: string, kind: Kind) => void;
+	/** Add ANSI colors to the log lines. @default false */
+	color?: boolean;
 };
 
 export type Result = {

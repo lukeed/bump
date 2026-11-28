@@ -114,7 +114,7 @@ export function build(config: Config, packages: Package[]): Unit[] {
 	let units: Unit[] = [...sets].map(([name, members]) => {
 		let versions = [...new Set(members.map(pkg => pkg.version?.value))];
 		if (versions.length > 1) {
-			let list = members.map(pkg => `\n  ${pkg.name}  ${pkg.version?.value}`).join('');
+			let list = members.map(pkg => `\n${pkg.name}  ${pkg.version?.value}`).join('');
 			throw new Error(`The members of ${name ? `"${name}"` : 'the release'} must share one version:${list}`);
 		}
 

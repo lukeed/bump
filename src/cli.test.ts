@@ -47,7 +47,7 @@ describe('cli', () => {
 			[['patch', 'a'], 'Targets need "independent": true in bump.json'],
 		];
 		for (let [args, message] of cases) {
-			expect(h.bump(r, ...args)).toEqual({ code: 1, stdout: '', stderr: `error: ${message}\n` });
+			expect(h.bump(r, ...args)).toEqual({ code: 1, stdout: '', stderr: `FAIL ${message}\n` });
 		}
 	});
 
@@ -70,7 +70,7 @@ describe('cli', () => {
 		proc.kill('SIGINT');
 
 		expect(await proc.exited).toBe(130);
-		expect(await new Response(proc.stderr).text()).toBe('error: Stopped by SIGINT; the release was undone\n');
+		expect(await new Response(proc.stderr).text()).toBe('FAIL Stopped by SIGINT\n│    The release was undone: no files, commits, or tags changed.\n');
 		expect(h.git(r, 'rev-parse', 'HEAD')).toBe(head);
 		expect(h.git(r, 'status', '--porcelain')).toBe('');
 		expect(h.git(r, 'tag', '--list')).toBe('v1.0.0');
@@ -93,6 +93,18 @@ describe('cli', () => {
 		let run = h.bump(r, 'minor', '--json');
 		expect(run.code).toBe(1);
 		expect(run.stdout).toBe('');
-		expect(run.stderr).toStartWith('error: no tag found');
+		expect(run.stderr).toStartWith('FAIL No tag found');
 	});
+
+	test('colors with FORCE_COLOR, and never with NO_COLOR or --json', () => {
+		let r = lockstep();
+		let run = (env: Record<string, string>, ...args: string[]) => Bun.spawnSync([process.execPath, join(import.meta.dirname, '..', 'bin.js'), ...args], { cwd: r.dir, env: { ...r.env, ...env } });
+		let ESC = '\x1b[';
+		expect(run({ FORCE_COLOR: '1' }, 'minor', '--dryrun').stdout.toString()).toStartWith(`${ESC}34m${ESC}1mBUMP${ESC}22m${ESC}39m `);
+		expect(run({ FORCE_COLOR: '1' }, 'nope').stderr.toString()).toBe(`${ESC}31m${ESC}1mFAIL${ESC}22m${ESC}39m Invalid <type> argument: "nope"\n`);
+		expect(run({ NO_COLOR: '1' }, 'minor', '--dryrun').stdout.toString()).not.toContain(ESC);
+		expect(run({ FORCE_COLOR: '1' }, 'minor', '--dryrun', '--json').stderr.toString()).not.toContain(ESC);
+		expect(run({}, 'minor', '--dryrun').stdout.toString()).not.toContain(ESC);
+	});
+
 });

@@ -36,9 +36,9 @@ describe('independent', () => {
 		expect(h.git(r, 'log', '-1', '--format=%s')).toBe('release: core@1.3.0, lib@0.4.2, app@3.0.1');
 		expect(h.git(r, 'tag', '--points-at', 'HEAD').split('\n')).toEqual(['app@3.0.1', 'core@1.3.0', 'lib@0.4.2']);
 		expect(run.stdout.split('\n').slice(0, 3)).toEqual([
-			'~> core 1.2.0 → 1.3.0 (changed)',
-			'~> lib 0.4.1 → 0.4.2 (dependent)',
-			'~> app 3.0.0 → 3.0.1 (dependent)',
+			'BUMP core 1.2.0 → 1.3.0  (changed)',
+			'BUMP lib 0.4.1 → 0.4.2  (dependent)',
+			'BUMP app 3.0.0 → 3.0.1  (dependent)',
 		]);
 	});
 
@@ -48,22 +48,22 @@ describe('independent', () => {
 		let run = h.bump(r, 'major', 'a');
 		expect(run.code).toBe(0);
 		expect(versions(r, 'a', 'b', 'c')).toEqual(['2.0.0', '1.0.1', '1.0.0']);
-		expect(run.stdout).toStartWith('~> a 1.0.0 → 2.0.0 (target)\n~> b 1.0.0 → 1.0.1 (dependent)\n');
+		expect(run.stdout).toStartWith('BUMP a 1.0.0 → 2.0.0  (target)\nBUMP b 1.0.0 → 1.0.1  (dependent)\n');
 	});
 
 	test('targets need a known name, and a versioned package', () => {
 		let r = independent({ a: ['1.0.0'] });
 		h.commit(r, { 'packages/site/package.json': h.manifest('site', undefined) });
-		expect(h.bump(r, 'patch', 'x', 'y').stderr).toBe('error: Unknown targets: "x", "y"\n');
-		expect(h.bump(r, 'patch', 'site').stderr).toBe('error: Package "site" has no version, so it cannot be a target\n');
-		expect(h.bump(r, 'patch', 'a', '--all').stderr).toBe('error: Cannot combine --all with targets\n');
+		expect(h.bump(r, 'patch', 'x', 'y').stderr).toBe('FAIL Unknown targets: "x", "y"\n');
+		expect(h.bump(r, 'patch', 'site').stderr).toBe('FAIL Package "site" has no version, so it cannot be a target\n');
+		expect(h.bump(r, 'patch', 'a', '--all').stderr).toBe('FAIL Cannot combine --all with targets\n');
 	});
 
 	test('an unrelated unit without a tag does not block a target', () => {
 		let r = independent({ a: ['1.0.0'], b: ['1.0.0'] });
 		h.git(r, 'tag', '-d', 'b@1.0.0');
 		expect(h.bump(r, 'patch', 'a').code).toBe(0);
-		expect(h.bump(r, 'patch').stderr).toStartWith('error: no tag found for 1 unit');
+		expect(h.bump(r, 'patch').stderr).toStartWith('FAIL No tag found for 1 unit');
 	});
 
 	test('the no-tag error lists every unit and the --adopt result', () => {
@@ -72,17 +72,16 @@ describe('independent', () => {
 		h.git(r, 'tag', '-d', 'api@1.1.0');
 		let run = h.bump(r, 'minor');
 		expect(run.stderr).toBe([
-			'error: no tag found for 2 units whose manifests are past 0.0.0',
-			'',
-			'  app   manifest 3.4.0   expected tag app@3.4.0',
-			'  api   manifest 1.1.0   expected tag api@1.1.0',
-			'',
-			'To continue from the last release, tag the commit that released it:',
-			'  git tag -a app@3.4.0 -m app@3.4.0 <commit>',
-			'  git tag -a api@1.1.0 -m api@1.1.0 <commit>',
-			'',
-			'To use the manifest versions as the base, run again with --adopt:',
-			'  bump minor --adopt   →   app 3.5.0, api 1.2.0',
+			'FAIL No tag found for 2 units whose manifests are past 0.0.0',
+			'│    app   manifest 3.4.0   expected tag app@3.4.0',
+			'│    api   manifest 1.1.0   expected tag api@1.1.0',
+			'│',
+			'│    To continue from the last release, tag the commit that released it:',
+			'│      git tag -a app@3.4.0 -m app@3.4.0 <commit>',
+			'│      git tag -a api@1.1.0 -m api@1.1.0 <commit>',
+			'│',
+			'│    To use the manifest versions as the base, run again with --adopt:',
+			'│      bump minor --adopt   →   app 3.5.0, api 1.2.0',
 			'',
 		].join('\n'));
 		expect(h.bump(r, 'minor', '--adopt').code).toBe(0);
@@ -141,7 +140,7 @@ describe('dependents of prereleases', () => {
 	test('a dependent prerelease of another form asks for a target', () => {
 		let r = independent({ app: ['1.0.0'], cli: ['1.0.0-0', { dependencies: { app: '^1.0.0' } }] });
 		h.commit(r, { 'packages/app/x.js': '1' });
-		expect(h.bump(r, 'patch').stderr).toBe('error: Cannot continue the "1.0.0-0" prerelease of "cli"; release it as a target with an exact version first\n');
+		expect(h.bump(r, 'patch').stderr).toBe('FAIL Cannot continue the "1.0.0-0" prerelease of "cli"; release it as a target with an exact version first\n');
 	});
 });
 
@@ -157,7 +156,7 @@ describe('groups', () => {
 		expect(run.code).toBe(0);
 		expect(versions(r, 'ui', 'web', 'api')).toEqual(['1.3.0', '1.3.0', '1.0.0']);
 		expect(h.git(r, 'tag', '--points-at', 'HEAD')).toBe('site@1.3.0');
-		expect(run.stdout).toStartWith('~> site 1.2.0 → 1.3.0 (target)\n     ui, web\n');
+		expect(run.stdout).toStartWith('BUMP site 1.2.0 → 1.3.0  (target)\n     ui, web\n');
 	});
 
 	test('refuses invalid groups', () => {
@@ -166,9 +165,9 @@ describe('groups', () => {
 			h.write(r, { 'bump.json': config({ groups }) });
 			return h.bump(r, 'patch', '--dryrun').stderr;
 		};
-		expect(run({ g: ['x'] })).toBe('error: Unknown package "x" in group "g"\n');
-		expect(run({ g: ['a'], h: ['a'] })).toBe('error: Package "a" is in groups "g" and "h"\n');
-		expect(run({ b: ['a'] })).toBe('error: Group "b" has the name of a package that is not its member\n');
+		expect(run({ g: ['x'] })).toBe('FAIL Unknown package "x" in group "g"\n');
+		expect(run({ g: ['a'], h: ['a'] })).toBe('FAIL Package "a" is in groups "g" and "h"\n');
+		expect(run({ b: ['a'] })).toBe('FAIL Group "b" has the name of a package that is not its member\n');
 		expect(run({ a: ['a', 'b'] })).toBe('');
 	});
 });
@@ -192,7 +191,7 @@ describe('json', () => {
 			ranges: [{ file: 'packages/cli/package.json', package: 'cli', dependency: 'core', field: 'dependencies', from: '^1.2.0', to: '^1.3.0' }],
 			files: ['packages/cli/package.json', 'packages/core/package.json'],
 		});
-		expect(run.stderr).toContain('~> core 1.2.0 → 1.3.0 (changed)');
+		expect(run.stderr).toContain('BUMP core 1.2.0 → 1.3.0  (changed)');
 	});
 
 	test('nothing to release, and a dry run', () => {
@@ -210,7 +209,7 @@ describe('edge cases', () => {
 	test('a seed prerelease of another form names its unit', () => {
 		let r = independent({ app: ['1.3.0-0'] });
 		h.commit(r, { 'packages/app/x.js': '1' });
-		expect(h.bump(r, 'prerelease').stderr).toBe('error: Cannot continue the "1.3.0-0" prerelease of "app"; use an exact version\n');
+		expect(h.bump(r, 'prerelease').stderr).toBe('FAIL Cannot continue the "1.3.0-0" prerelease of "app"; use an exact version\n');
 	});
 
 	test('a group name with "$" stays literal in tags', () => {
